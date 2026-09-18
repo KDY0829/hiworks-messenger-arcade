@@ -1,0 +1,2 @@
+import {request,type AIProvider} from './types';
+export const anthropic:AIProvider={async generate({key,model,prompt}){const data=await request('https://api.anthropic.com/v1/messages',{'x-api-key':key,'anthropic-version':'2023-06-01'},{model,max_tokens:256,thinking:{type:'disabled'},messages:[{role:'user',content:prompt}]}) as {content?:{type:string;text?:string}[]};return data.content?.filter(p=>p.type==='text').map(p=>p.text??'').join('')??'';}};

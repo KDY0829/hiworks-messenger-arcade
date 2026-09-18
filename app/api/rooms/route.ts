@@ -1,3 +1,4 @@
+import {active,tickInfiltrator,stop as stopInfiltrator} from '@/games/ai-infiltrator/engine';
 import { getDb,getRawDb } from '@/db';
 import { rooms,files } from '@/db/schema';
 import { and, eq } from 'drizzle-orm';
@@ -33,7 +34,7 @@ export async function POST(req:Request){
   const id=String(b.room??'').toUpperCase();if(!/^[A-F0-9]{8}$/.test(id))return fail('대화방 코드를 확인해 주세요.');
   for(let attempt=0;attempt<5;attempt++){
    const row=await db.select().from(rooms).where(eq(rooms.id,id)).get();if(!row)return fail('대화방을 찾을 수 없습니다.',404);
-   const r:Room=JSON.parse(row.state);const p=r.players.find(p=>p.id===b.token);let changed=tick(r,now);
+   const r:Room=JSON.parse(row.state);const p=r.players.find(p=>p.id===b.token);let changed=tick(r,now);changed=tickInfiltrator(r,now)||changed;
    if(r.direct&&!p)return fail('초대된 참여자만 입장할 수 있습니다.',403);
    if(b.action==='join'){
     if(p){p.seen=now;if(b.name)p.name=String(b.name).trim().slice(0,20)||p.name;changed=true;}else{
@@ -48,7 +49,7 @@ export async function POST(req:Request){
     if(now-p.seen>5000){p.seen=now;changed=true;await getRawDb().prepare('UPDATE profiles SET seen_at=? WHERE token=?').bind(now,b.token).run();}
     if(b.action==='start'){
      if(r.host!==b.token)return fail('방장만 시작할 수 있습니다.',403);
-     if(r.phase==='playing')return fail('이미 진행 중입니다.');
+     if(r.phase==='playing'||active(r))return fail('이미 진행 중입니다.');
      if(r.players.filter(p=>now-p.seen<15000).length<2)return fail('접속 중인 참여자가 2명 이상 필요합니다.');
      r.players=r.players.filter(p=>now-p.seen<15000);r.players.forEach(p=>{p.alive=true;p.score=0;});
      r.phase='playing';r.turn=r.players[0].id;r.used=[];r.last='';r.pending=null;r.turnCount=0;r.deadline=now+r.seconds*1000;
@@ -81,6 +82,7 @@ export async function POST(req:Request){
      message(r,p.name,text);changed=true;
     }else if(b.action==='leave'){
      if(r.phase==='playing'&&p.alive){p.alive=false;if(r.turn===p.id)next(r,now,true);else if(r.players.filter(p=>p.alive).length<=1){r.turn=p.id;next(r,now,true);}}
+     if(active(r)&&r.infiltrator!.players.some(player=>player.id===b.token))stopInfiltrator(r);
      r.players=r.players.filter(p=>p.id!==b.token);if(r.host===b.token)r.host=r.players[0]?.id??'';message(r,'알림',`${p.name}님이 나갔습니다.`,true);changed=true;
     }else if(b.action!=='poll')return fail('지원하지 않는 요청입니다.');
    }

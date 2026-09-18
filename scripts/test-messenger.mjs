@@ -17,10 +17,17 @@ function prepared(query,params=[]){return {bind(...values){return prepared(query
 scope.raw={prepare:prepared,async batch(statements){native.exec('BEGIN');try{const result=[];for(const s of statements)result.push(s.run());native.exec('COMMIT');return result;}catch(e){native.exec('ROLLBACK');throw e;}}};
 const objects=new Map();scope.env={FILES:{async put(id,data){objects.set(id,new Uint8Array(data));},async get(id){const b=objects.get(id);return b?{async arrayBuffer(){return b.slice().buffer;}}:null;},async delete(id){objects.delete(id);}}};
 const words=url(readFileSync('lib/words.ts','utf8')),dictionary=url(readFileSync('lib/dictionary.ts','utf8'));
+const aiQuestions=url(readFileSync('games/ai-infiltrator/questions.ts','utf8'));
 const game=url(readFileSync('lib/game.ts','utf8').replace("'./words'",JSON.stringify(words)).replace("'./dictionary'",JSON.stringify(dictionary)));
+const aiEngine=url(readFileSync('games/ai-infiltrator/engine.ts','utf8').replace("'./questions'",JSON.stringify(aiQuestions)).replace("'@/lib/game'",JSON.stringify(game)));
 const swordConfig=url(readFileSync('games/sword-enhancement/config.ts','utf8'));
 const swordEngine=url(readFileSync('games/sword-enhancement/engine.ts','utf8').replace("'./config'",JSON.stringify(swordConfig)));
-async function route(file){let source=readFileSync(file,'utf8').replace(/import \{[^}]+\} from '@\/db';/,'const getDb=()=>globalThis.messengerTest.db,getRawDb=()=>globalThis.messengerTest.raw;').replace(/import \{([^}]+)\} from '@\/db\/schema';/,'const {$1}=globalThis.messengerTest.schema;').replace(/import \{([^}]+)\} from 'drizzle-orm';/,'const {$1}=globalThis.messengerTest.orm;').replace(/import \{env\} from 'cloudflare:workers';/,'const env=globalThis.messengerTest.env;').replace("'@/lib/game'",JSON.stringify(game)).replace("'@/games/sword-enhancement/engine'",JSON.stringify(swordEngine));return import(url(source));}
+const aiConfig=url(readFileSync('ai/config.ts','utf8')),providerTypes=url(readFileSync('ai/providers/types.ts','utf8'));
+const providerUrls=Object.fromEntries(['openai','gemini','anthropic'].map(id=>[id,url(readFileSync(`ai/providers/${id}.ts`,'utf8').replace("'./types'",JSON.stringify(providerTypes)))]));
+let providerSource=readFileSync('ai/providers/registry.ts','utf8').replace("'../config'",JSON.stringify(aiConfig)).replace("'./types'",JSON.stringify(providerTypes));
+for(const [id,path] of Object.entries(providerUrls))providerSource=providerSource.replace(`'./${id}'`,JSON.stringify(path));
+const aiProviders=url(providerSource);
+async function route(file){let source=readFileSync(file,'utf8').replace(/import \{[^}]+\} from '@\/db';/,'const getDb=()=>globalThis.messengerTest.db,getRawDb=()=>globalThis.messengerTest.raw;').replace(/import \{([^}]+)\} from '@\/db\/schema';/,'const {$1}=globalThis.messengerTest.schema;').replace(/import \{([^}]+)\} from 'drizzle-orm';/,'const {$1}=globalThis.messengerTest.orm;').replace(/import \{env\} from 'cloudflare:workers';/,'const env=globalThis.messengerTest.env;').replace("'@/lib/game'",JSON.stringify(game)).replace("'@/games/sword-enhancement/engine'",JSON.stringify(swordEngine)).replace("'@/games/ai-infiltrator/engine'",JSON.stringify(aiEngine)).replace("'@/games/ai-infiltrator/questions'",JSON.stringify(aiQuestions)).replace("'@/ai/config'",JSON.stringify(aiConfig)).replace("'@/ai/providers/registry'",JSON.stringify(aiProviders)).replace("'@/ai/providers/types'",JSON.stringify(providerTypes));return import(url(source));}
 const messenger=await route('app/api/messenger/route.ts'),rooms=await route('app/api/rooms/route.ts'),files=await route('app/api/files/route.ts');
 async function call(handler,token,action,extra={},expected=200){const response=await handler.POST(new Request('https://test.local/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,action,...extra})}));const data=await response.json();assert.equal(response.status,expected,JSON.stringify(data));return data;}
 const a=crypto.randomUUID(),b=crypto.randomUUID(),c=crypto.randomUUID();
@@ -73,6 +80,74 @@ equipment=await call(sword,a,'stop',{room:group,revision:equipment.revision,requ
 const other=(await call(rooms,a,'create',{name:'대영'})).id;equipment=await call(sword,a,'start',{room:other,revision:equipment.revision,requestId:crypto.randomUUID()});assert.equal(equipment.state.boost,1);assert.equal(equipment.state.gold,4500);
 assert.deepEqual(await call(sword,a,'get',{room:other}),equipment);
 await call(rooms,a,'start',{room:group});await call(sword,a,'start',{room:group,revision:equipment.revision,requestId:crypto.randomUUID()},400);
+// AI game runs the real provider adapters with controlled HTTP responses; no paid key needed.
+const infiltrator=await route('app/api/games/infiltrator/route.ts');
+const aiLogic=await import(aiEngine),providerModule=await import(aiProviders);
+const aiRoom=(await call(rooms,a,'create',{name:'대영'})).id;
+await call(rooms,b,'join',{room:aiRoom,name:'유진'});await call(rooms,c,'join',{room:aiRoom,name:'민수'});
+const originalFetch=globalThis.fetch;let calls=0,httpStatus=200,hold=null;
+const testKey='test-key-not-a-real-secret';
+globalThis.fetch=async(input,options)=>{calls++;const body=JSON.parse(options.body);assert(!JSON.stringify(body).includes(testKey));assert(!String(input).includes(testKey));assert(JSON.stringify(options.headers).includes(testKey));if(hold)await hold;return Response.json(httpStatus===200?String(input).includes('openai')?{choices:[{message:{content:'그냥 집에서 늦잠 잘 듯'}}]}:String(input).includes('googleapis')?{candidates:[{content:{parts:[{text:'바다 가서 쉬고 싶음'}]}}]}:{content:[{type:'text',text:'난 맛있는 거 먹으러 갈듯'}]}:{error:{message:testKey}},{status:httpStatus});};
+for(const [provider,model] of [['openai','gpt-4.1-mini'],['gemini','gemini-3.5-flash-lite'],['anthropic','claude-haiku-4-5-20251001']])assert((await providerModule.generate(provider,model,testKey,'짧게 답해라')).length>0);
+for(const [status,code] of [[401,'auth'],[429,'quota'],[404,'model'],[503,'network']]){httpStatus=status;await assert.rejects(providerModule.generate('openai','gpt-4.1-mini',testKey,'test'),e=>e.code===code&&!e.message.includes(testKey));}
+httpStatus=200;
+await assert.rejects(providerModule.generate('openai','unsupported',testKey,'test'));
+await call(infiltrator,b,'test',{room:aiRoom,provider:'openai',model:'gpt-4.1-mini',key:testKey},403);
+assert.equal((await call(infiltrator,a,'test',{room:aiRoom,provider:'openai',model:'gpt-4.1-mini',key:testKey})).connected,true);
+await call(infiltrator,a,'test',{room:aiRoom,provider:'openai',model:'gpt-4.1-mini',key:testKey},429);
+const aiSettings={provider:'openai',model:'gpt-4.1-mini',participants:3,rounds:3,seconds:20,questionSet:'daily',key:testKey};
+await call(infiltrator,a,'start',{room:aiRoom,settings:aiSettings});
+function rawAI(){return JSON.parse(native.prepare('SELECT state FROM rooms WHERE id=?').get(aiRoom).state);}
+function editAI(edit){const room=rawAI();edit(room.infiltrator);native.prepare('UPDATE rooms SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(room),aiRoom);}
+function extraAI(extra={}){const state=rawAI().infiltrator;return {room:aiRoom,gameId:state.id,round:state.round,...extra};}
+assert(!JSON.stringify(rawAI()).includes(testKey));
+await call(rooms,a,'start',{room:aiRoom},400);
+await call(infiltrator,a,'start',{room:aiRoom,settings:aiSettings},400);
+for(let round=0;round<3;round++){
+ const countBefore=calls;
+ if(round===0){let resolve;hold=new Promise(r=>resolve=r);const pending=call(infiltrator,a,'generate',extraAI({key:testKey}));await new Promise(r=>setTimeout(r,20));await call(infiltrator,a,'generate',extraAI({key:testKey}),400);resolve();await pending;hold=null;}
+ else await call(infiltrator,a,'generate',extraAI({key:testKey}));
+ assert.equal(calls,countBefore+1);
+ const privateState=rawAI().infiltrator;
+ for(const token of [a,b,c]){const state=(await call(infiltrator,token,'get',{room:aiRoom})).state;assert.equal(state.isTarget,token===privateState.target);assert(!JSON.stringify(state).includes(testKey));assert(!Object.hasOwn(state,'answers'));assert(!Object.hasOwn(state,'target'));}
+ const publicState=await call(rooms,b,'poll',{room:aiRoom});assert(!Object.hasOwn(publicState,'infiltrator'));assert(!JSON.stringify(publicState).includes(testKey));
+ const humans=[a,b,c].filter(t=>t!==privateState.target);
+ await call(infiltrator,privateState.target,'answer',extraAI({text:'직접 답변'}),400);
+ await call(infiltrator,humans[0],'answer',extraAI({text:'사람 답변 하나'}));
+ await call(infiltrator,humans[0],'answer',extraAI({text:'중복'}),400);
+ assert(!(await call(rooms,b,'poll',{room:aiRoom})).messages.some(m=>m.text==='사람 답변 하나'&&m.time>=(publicState.messages.at(-1)?.time??0))||round>0);
+ await call(infiltrator,humans[1],'answer',extraAI({text:'사람 답변 둘'}));
+ const revealed=await call(rooms,b,'poll',{room:aiRoom});assert(revealed.messages.some(m=>m.name===privateState.players.find(p=>p.id===privateState.target).name&&m.text==='그냥 집에서 늦잠 잘 듯'&&!m.system));
+ assert.equal(rawAI().infiltrator.stage,'discussion');
+ const prior=rawAI().messages.filter(m=>m.name==='유진').at(-1);if(prior)prior.time=0;
+ // Conversation coexists with the game (rate limiter may reject an immediate send).
+ const chatRoom=rawAI();chatRoom.messages.forEach(m=>m.time=0);native.prepare('UPDATE rooms SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(chatRoom),aiRoom);
+ await call(rooms,b,'chat',{room:aiRoom,text:'평소 말투랑 좀 다른데'});
+ editAI(s=>s.deadline=Date.now()-1);await call(infiltrator,a,'get',{room:aiRoom});
+}
+assert.equal(rawAI().infiltrator.stage,'voting');
+const aiTarget=rawAI().infiltrator.target,humans=[a,b,c].filter(t=>t!==aiTarget);
+await call(infiltrator,humans[0],'vote',extraAI({target:aiTarget.slice(0,8)}));
+await call(infiltrator,humans[0],'vote',extraAI({target:aiTarget.slice(0,8)}),400);
+await call(infiltrator,humans[1],'vote',extraAI({target:aiTarget.slice(0,8)}));
+assert.equal(rawAI().infiltrator.stage,'finished');assert(rawAI().messages.some(m=>m.text.includes('시민 승')));
+// Restart, provider failure, bounded retry, stale action, outsider and origin protection.
+await call(infiltrator,a,'start',{room:aiRoom,settings:aiSettings});
+httpStatus=401;await call(infiltrator,a,'generate',extraAI({key:testKey}));assert(rawAI().infiltrator.error.includes('API Key'));
+assert(!(await call(infiltrator,b,'get',{room:aiRoom})).state.error);
+await call(infiltrator,b,'retry',extraAI(),403);await call(infiltrator,a,'retry',extraAI());
+httpStatus=429;await call(infiltrator,a,'generate',extraAI({key:testKey}));assert.equal(rawAI().infiltrator.stage,'discussion');assert.equal(rawAI().infiltrator.attempts,2);
+await call(infiltrator,a,'retry',extraAI(),400);
+await call(infiltrator,crypto.randomUUID(),'get',{room:aiRoom},403);
+await call(infiltrator,a,'vote',extraAI({gameId:crypto.randomUUID(),target:b.slice(0,8)}),409);
+await call(infiltrator,a,'stop',extraAI());assert.equal(rawAI().infiltrator.cancelled,true);
+httpStatus=200;await call(infiltrator,a,'start',{room:aiRoom,settings:aiSettings});
+editAI(s=>{const room=rawAI();const lease=aiLogic.claim(room,Date.now());Object.assign(s,room.infiltrator);assert(lease);s.deadline=Date.now()-1;});
+await call(infiltrator,a,'get',{room:aiRoom});assert(rawAI().infiltrator.error.includes('대기 시간'));
+await call(rooms,c,'leave',{room:aiRoom});assert.equal(rawAI().infiltrator.stage,'finished');
+assert(!JSON.stringify(rawAI()).includes(testKey));
+globalThis.fetch=originalFetch;
+console.log('PASS: BYOK adapters, auth/quota/model errors, API key/role/answer isolation, one call per round under concurrency, game lifecycle, hidden answers, discussion, voting, restart, bounded retry, lease recovery and leave');
 native.close();delete globalThis.messengerTest;
 console.log('PASS: sword outcomes, sale/shop, protection, rescue, max level, state restoration across rooms, idempotency, concurrent CAS, event visibility and membership');
 console.log('PASS: profiles/photos, friends, private conversations, shared history, unread/read tracking, group word game, R2 upload/download, legacy schema, size/member checks');

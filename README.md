@@ -89,3 +89,17 @@ API 검증은 실제 핸들러와 SQLite를 사용하고 R2에는 메모리 어�
 6. 개인 진행은 D1에 저장합니다. 공유 이벤트는 `game_events`에 기록하면 기존 rooms API의 1초 polling, 방 목록·읽음 처리에 반영됩니다. 새 테이블은 Drizzle 마이그레이션으로 추가합니다.
 
 검 강화 폴더와 API를 두 번째 예제로 참고합니다. 기존 끝말잇기는 `lib/game.ts`와 rooms API를 유지하며 별도 실시간 서버나 플러그인 SDK는 사용하지 않습니다.
+
+## AI 잠입자 (BYOK)
+
+채팅방 메뉴 → AI 잠입자에서 방장이 접속 인원(3~8명), 라운드(3·5·7회), 답변 시간, 질문 세트와 AI 설정을 선택합니다. 본인의 API Key로 연결 테스트한 뒤 시작합니다. 참가자는 기존 입력창으로 답변하고 말풍선 버튼으로 일반 채팅을 전환합니다. 답변은 동시에 공개되고 라운드마다 30초 대화 후 마지막에 투표합니다. 잠입자는 게임 전체에서 고정되며 본인에게만 역할이 보입니다. 새로 입장한 사람은 관전합니다. 참가자가 방을 나가면 종료합니다.
+
+- Key는 React 화면 메모리에만 유지합니다. localStorage·sessionStorage·D1·채팅에 저장하지 않습니다. 새로고침하면 생성자가 키를 다시 입력해야 합니다. 데스크톱도 동일한 온라인 웹 실행기이므로 OS 자격 증명 저장 기능은 없습니다.
+- 클라이언트 → 동일 출처 게임 API → 허용된 provider HTTPS API로 요청합니다. 생성자만 AI 생성·연결 테스트를 할 수 있고, 키는 요청 동안만 사용합니다. 질문 하나와 짧은 역할 프롬프트만 전송하며 이름·전체 채팅·사람 답변은 전송하지 않습니다.
+- 정상 라운드당 생성 1회, 연결 테스트 별도 1회입니다. CAS로 생성 요청을 먼저 예약하여 중복 호출을 막습니다. 실패 시 생성자가 최대 1회 재시도하며 최종 실패 라운드는 무효입니다. 응답 대기 예약은 만료되며 생성자가 사라져도 자동 유료 재호출하지 않습니다. 네트워크 실패는 provider가 이미 처리했더라도 비용이 발생할 수 있습니다.
+- 기존 `rooms.state`에 비공개 게임 상태를 저장합니다. 공개 방 응답에는 이 상태를 제거하고, 개인 게임 API도 역할·제출 여부만 반환합니다. 기존 방 revision/CAS와 1초 폴링을 재사용하며 DB 마이그레이션은 없습니다.
+- `ai/config.ts`: 제공자·모델 목록. `ai/providers/`: 서버 전용 호출 어댑터와 레지스트리. 모델은 목록만 수정하면 UI에 반영됩니다. 제공자 추가 시 설정과 호출 레지스트리를 함께 등록합니다. 외부 URL은 사용자 입력으로 받지 않습니다.
+- `games/ai-infiltrator/questions.ts`: 질문 세트. `engine.ts`: 순수 상태 전이·시간·승패·비공개 view·프롬프트. `settings.tsx`, `panel.tsx`, `use-infiltrator.ts`: 작은 채팅 UI와 개인 동기화. 이 구현을 AI 기반 게임 예제로 참고하세요. 클라이언트 레지스트리에 서버 어댑터를 import하지 않습니다.
+- `node scripts/test-messenger.mjs`: 실제 핸들러·SQLite와 모의 provider HTTP 응답으로 전체 흐름·정보 비공개·중복 요청·오류 처리를 검증합니다. 실제 유료 API 연동은 각 사용자의 Key 및 모델 접근 권한으로 별도 확인해야 합니다.
+
+모델과 호출 형식 참고: [OpenAI](https://developers.openai.com/api/docs/models/gpt-4.1-mini), [Gemini](https://ai.google.dev/gemini-api/docs/models), [Claude](https://platform.claude.com/docs/en/models/overview).

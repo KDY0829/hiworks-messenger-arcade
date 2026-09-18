@@ -209,3 +209,11 @@ html[data-desktop=true] .messenger-home{height:100dvh;max-height:none}
 .game-menu-heading .game-help{margin-left:auto;border:1px solid #ccc;border-radius:50%;width:20px;height:20px;font-size:12px}
 .game-menu-heading button:focus-visible{outline:2px solid #2969aa;outline-offset:2px}
 .game-menu-note{font-size:12px;color:#888;line-height:1.6;margin:8px 0 0}
+
+.ai-key-label{display:block;font-size:12px;margin:8px 0;color:#555}
+.ai-key-label input,.ai-key-label select{display:block;width:100%;min-width:0;border:1px solid #ddd;background:white;padding:5px;margin-top:4px;font-size:12px}
+.infiltrator-panel{font-size:12px;padding:7px 14px;border-top:1px solid #ddd;max-height:145px;overflow:auto;background:#fafafa}
+.infiltrator-panel p{margin:5px 0;color:#666;line-height:1.5}
+.infiltrator-heading{display:flex;justify-content:space-between;color:#777}
+.infiltrator-heading button{background:transparent;border:0;text-decoration:underline;cursor:pointer}
+.infiltrator-panel select{border:1px solid #ddd;margin:0 8px;padding:3px;background:white}
