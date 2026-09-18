@@ -28,3 +28,9 @@ export const memberships=sqliteTable('memberships',{
 export const directRooms=sqliteTable('direct_rooms',{
  pair:text('pair').primaryKey(), roomId:text('room_id').notNull(),
 });
+export const swordProgress=sqliteTable('sword_progress',{
+ token:text('token').primaryKey(),state:text('state').notNull(),revision:integer('revision').notNull().default(0),lastRequest:text('last_request').notNull().default(''),
+});
+export const gameEvents=sqliteTable('game_events',{
+ id:text('id').primaryKey(),roomId:text('room_id').notNull(),name:text('name').notNull(),text:text('text').notNull(),time:integer('time').notNull(),
+},t=>[index('idx_game_events_room_time').on(t.roomId,t.time)]);

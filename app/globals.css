@@ -190,3 +190,10 @@ html[data-desktop="true"] .cover{width:100%;max-width:100%;height:100dvh;margin:
 .message:not(.system) .metadata{display:flex;align-items:center;gap:6px}.message .metadata .portrait{width:24px;height:24px;min-width:24px;font-size:12px}.message:not(.system) .message-text{padding-left:30px}
 @media(max-width:450px){.messenger-home{height:100dvh;max-height:none;min-width:0}}
 html[data-desktop=true] .messenger-home{height:100dvh;max-height:none}
+
+/* Inline equipment management, sharing the messenger's restrained palette. */
+.sword-card{font-size:12px;border:1px solid #d6dfe8;background:#f8fafc;padding:10px;margin:12px 0;max-width:340px;color:#34465a;overflow-wrap:anywhere}
+.sword-card header,.sword-shop>div{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.sword-card header strong{margin-right:auto}.sword-card button{cursor:pointer}.sword-card button:disabled{cursor:default;opacity:.5}
+.sword-card nav{display:flex;gap:12px;border-bottom:1px solid #d6dfe8;margin:8px 0;padding-bottom:5px}.sword-card nav button[aria-pressed=true]{font-weight:600;color:#2266a3}
+.sword-facts{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:6px 0}.sword-card small{display:block;color:#63758a;font-size:11px}.sword-buttons{display:flex;gap:6px;margin-top:8px}.sword-result{border-top:1px solid #d6dfe8;padding-top:7px;margin-top:8px;white-space:pre-wrap}.sword-shop>div{padding:5px 0}.sword-records details{margin-top:6px}.sword-records details>div{padding:3px 0}.sword-card button:focus-visible,.sword-card summary:focus-visible{outline:2px solid #2266a3;outline-offset:2px}

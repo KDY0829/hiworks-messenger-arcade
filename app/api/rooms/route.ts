@@ -4,13 +4,15 @@ import { and, eq } from 'drizzle-orm';
 import { accept,known,message,next,publicRoom,tick,validate,type Room } from '@/lib/game';
 export const dynamic='force-dynamic';
 const fail=(error:string,status=400)=>Response.json({error},{status});
-async function remember(r:Room,token:string,viewing:boolean,now:number){
- const db=getRawDb(),last=r.messages.at(-1)?.time??0;
+async function remember(r:Room,token:string,viewing:boolean){
+ const db=getRawDb(),event=await db.prepare('SELECT max(time) AS time FROM game_events WHERE room_id=?').bind(r.id).first<{time:number|null}>(),last=Math.max(r.messages.at(-1)?.time??0,event?.time??0);
  await db.prepare('INSERT OR IGNORE INTO memberships(token,room_id,last_read) VALUES(?,?,0)').bind(token,r.id).run();
  if(viewing&&last)await db.prepare('UPDATE memberships SET last_read=? WHERE token=? AND room_id=? AND last_read<?').bind(last,token,r.id,last).run();
 }
 async function respond(r:Room){
  const publicView=publicRoom(r),tokens=r.players.map(p=>p.id);
+ const events=await getRawDb().prepare('SELECT id,name,text,time FROM game_events WHERE room_id=? ORDER BY time DESC,id DESC LIMIT 30').bind(r.id).all<{id:string;name:string;text:string;time:number}>();
+ publicView.messages=[...publicView.messages,...events.results.map(e=>({...e,system:true}))].sort((a,b)=>a.time-b.time||a.id.localeCompare(b.id)).slice(-150);
  if(tokens.length){const result=await getRawDb().prepare(`SELECT token,photo_id FROM profiles WHERE token IN (${tokens.map(()=>'?').join(',')})`).bind(...tokens).all<{token:string;photo_id:string|null}>();const photos=new Map(result.results.map(p=>[p.token,p.photo_id]));publicView.players=publicView.players.map((p,i)=>({...p,photoId:photos.get(tokens[i])??null}));}
  return Response.json(publicView);
 }
@@ -26,7 +28,7 @@ export async function POST(req:Request){
    const r:Room={id,host:b.token,players:[{id:b.token,name,alive:true,score:0,seen:now}],messages:[],phase:'waiting',turn:'',last:'',used:[],deadline:0,seconds:15,vocabulary:'extended',turnCount:0,custom:[],pending:null,created:now};
    message(r,'알림',`${name}님이 대화방을 만들었습니다.`,true);
    await db.insert(rooms).values({id,state:JSON.stringify(r),revision:0,updatedAt:now});
-   await remember(r,b.token,b.viewing!==false,now);return respond(r);
+   await remember(r,b.token,b.viewing!==false);return respond(r);
   }
   const id=String(b.room??'').toUpperCase();if(!/^[A-F0-9]{8}$/.test(id))return fail('대화방 코드를 확인해 주세요.');
   for(let attempt=0;attempt<5;attempt++){
@@ -83,7 +85,7 @@ export async function POST(req:Request){
     }else if(b.action!=='poll')return fail('지원하지 않는 요청입니다.');
    }
    if(changed){const updated=await db.update(rooms).set({state:JSON.stringify(r),revision:row.revision+1,updatedAt:now}).where(and(eq(rooms.id,id),eq(rooms.revision,row.revision))).returning({id:rooms.id});if(!updated.length)continue;}
-   await remember(r,b.token,b.viewing!==false,now);return respond(r);
+   await remember(r,b.token,b.viewing!==false);return respond(r);
   }
   return fail('메시지가 겹쳤습니다. 다시 보내 주세요.',409);
  }catch(e){console.error('room request failed',e);return fail('연결하지 못했습니다. 잠시 후 다시 시도해 주세요.',503);}

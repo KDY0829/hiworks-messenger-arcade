@@ -1,6 +1,6 @@
 # Hiworks Messenger Arcade
 
-하이웍스 메신저 스타일의 한국어 멀티플레이어 끝말잇기 앱입니다.
+하이웍스 메신저 스타일의 한국어 채팅방 미니게임 앱입니다.
 
 - 최근 대화·친구·파일 탭, 친구 코드 추가와 개인 대화
 - 사진·이름·상태 메시지를 수정하는 개인 프로필
@@ -9,6 +9,7 @@
 - Esc로 대화창 접기·복원, 읽던 채팅 위치 유지
 - 이미지 미리 보기·파일 다운로드, 파일당 512KB / 방당 100개
 - Windows 앱 창과 트레이 지원
+- 채팅방에서 검 강화·판매·상점·장비 기록, 사용자별 진행 저장
 
 ## 사용하기
 
@@ -39,7 +40,7 @@ git push -u origin fix/my-change
 - `lib/`: 게임 규칙과 서버 전용 사전
 - `drizzle/`: D1 데이터베이스 마이그레이션
 - `desktop/`: Windows 실행기 C 소스, 아이콘, 빌드 스크립트
-- `.github/workflows/release-windows.yml`: 버전 태그를 push하면 Windows 실행 파일·ZIP을 빌드해 GitHub Releases에 게시
+- `.github/workflows/release-windows.yml`: main push 시 latest 개발 릴리스를 갱신하고, 버전 태그 push 시 정식 릴리스를 게시
 
 로컬 개발·데이터베이스 설정은 [DEVELOPMENT.md](DEVELOPMENT.md)를 확인합니다. GitHub에 소스를 push하는 것과 현재 온라인 서비스에 배포하는 것은 별개입니다. Windows 릴리스 작업은 온라인 서버를 자동 배포하지 않습니다.
 
@@ -50,7 +51,7 @@ git tag v1.0.1
 git push origin v1.0.1
 ```
 
-GitHub Actions가 켜져 있고 Actions의 저장소 쓰기 권한이 허용되어 있어야 합니다. GitHub에서 실제 첫 릴리스 실행은 아직 검증하지 않았습니다. Windows에서 직접 빌드하려면 Zig를 설치하고 `desktop/build.cmd`를 실행합니다. Linux 크로스 빌드는 `ZIG=/path/to/zig bash desktop/build-linux.sh`입니다.
+GitHub Actions가 켜져 있고 Actions의 저장소 쓰기 권한이 허용되어 있어야 합니다. 릴리스의 실행 상태와 다운로드 파일은 Actions 및 Releases에서 확인합니다. Windows에서 직접 빌드하려면 Zig를 설치하고 `desktop/build.cmd`를 실행합니다. Linux 크로스 빌드는 `ZIG=/path/to/zig bash desktop/build-linux.sh`입니다.
 
 ## 데이터와 라이선스
 
@@ -70,4 +71,21 @@ node scripts/test-messenger.mjs
 node node_modules/typescript/bin/tsc --noEmit
 ```
 
-API 검증은 실제 핸들러와 SQLite를 사용하고 R2에는 메모리 어댑터를 사용합니다. Windows 실행 파일은 크로스 빌드되며 실제 Windows 실행은 별도로 확인해야 합니다. GitHub Actions의 첫 실행은 GitHub에 저장소 업로드 후 확인합니다.
+API 검증은 실제 핸들러와 SQLite를 사용하고 R2에는 메모리 어댑터를 사용합니다. Windows 실행 파일은 크로스 빌드되며 실제 Windows 실행은 별도로 확인해야 합니다. GitHub Actions 실행 여부는 push 후 별도로 확인합니다.
+
+## 검 강화하기
+
+대화방의 메뉴 → 검 강화하기를 선택합니다. 장비 카드에서 강화·판매·상점·기록을 사용하고 종료하면 일반 대화만 남습니다. Esc와 목록으로 돌아가기는 장비를 삭제하지 않습니다. 다시 같은 방을 열거나 다른 방에서 시작하면 사용자 토큰에 연결된 D1 기록을 이어갑니다. 끝말잇기 진행 중에는 장비 처리가 일시 정지되며 일반 채팅은 계속 사용할 수 있습니다.
+
+`games/sword-enhancement/config.ts`에서 최대 단계, 이름/등급, 절대 확률(%), 비용/판매가/점수, 아이템 가격 및 공유 기준을 변경합니다. 확률 합계는 100 이하를 유지하고 tiers에는 +0 이름을 포함합니다. 보조권은 다음 강화에 자동 소비되고, 파괴 방지권은 파괴 판정 때만 소비됩니다. +0 판매는 불가능하며 파괴 후 골드가 부족하면 재시작 지원금을 지급합니다. 구입한 시작 단계는 강화 최고 기록에 바로 포함되지 않습니다. 기존 저장 데이터가 있는 서비스에서 최대 단계를 낮추려면 데이터 호환 정책도 함께 변경해야 합니다.
+
+## 새로운 게임 추가 방법
+
+1. `games/<game-id>/` 폴더에 설정, 상태/액션 타입, 순수 규칙 엔진을 작성합니다.
+2. `games/registry.ts`에 클라이언트에서 안전한 메타데이터를 등록합니다. 사전/서버 모듈은 이 파일에 import하지 않습니다.
+3. 기존 Button과 채팅 스타일로 작은 UI와 요청 훅을 작성합니다.
+4. `app/page.tsx`의 대화방 활동 트리거와 인라인 패널에 연결합니다. registry의 등록만으로 서버와 UI가 자동 연결되지는 않습니다.
+5. 필요한 서버 핸들러를 `app/api/games/<id>/route.ts`에 추가하고 현재 토큰·대화방 참여 권한을 검사합니다. 상태 변경은 서버에서 판정하고 버전 검사로 중복 요청을 막습니다.
+6. 개인 진행은 D1에 저장합니다. 공유 이벤트는 `game_events`에 기록하면 기존 rooms API의 1초 polling, 방 목록·읽음 처리에 반영됩니다. 새 테이블은 Drizzle 마이그레이션으로 추가합니다.
+
+검 강화 폴더와 API를 두 번째 예제로 참고합니다. 기존 끝말잇기는 `lib/game.ts`와 rooms API를 유지하며 별도 실시간 서버나 플러그인 SDK는 사용하지 않습니다.
