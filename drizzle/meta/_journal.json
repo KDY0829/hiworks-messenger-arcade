@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1789705358863,
+      "tag": "0000_massive_cobalt_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1789708727861,
+      "tag": "0001_nostalgic_korvac",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1789709694384,
+      "tag": "0002_fearless_wraith",
+      "breakpoints": true
+    }
+  ]
+}

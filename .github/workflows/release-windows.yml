@@ -1,0 +1,25 @@
+name: Windows release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install pinned Windows cross compiler
+        run: npm install --prefix "$RUNNER_TEMP/officechat-zig" --no-audit --no-fund @oven/zig-linux-x64@0.12.0-dev.1286
+      - name: Build Windows package
+        env:
+          ZIG: ${{ runner.temp }}/officechat-zig/node_modules/@oven/zig-linux-x64/zig
+        run: bash desktop/build-linux.sh
+      - name: Publish release downloads
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: gh release create "$RELEASE_TAG" desktop/build/OfficeChat-Windows.zip desktop/OfficeChat.exe --verify-tag --generate-notes
