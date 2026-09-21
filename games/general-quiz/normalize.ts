@@ -1,0 +1,7 @@
+const choseong=['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+export function normalizeAnswer(value:string){return value.normalize('NFKC').toLocaleLowerCase('ko-KR').replace(/[\s\p{P}\p{S}]+/gu,'');}
+export function isCorrectAnswer(value:string,answer:string,accepted:string[]=[]){const normalized=normalizeAnswer(value);return !!normalized&&[answer,...accepted].some(candidate=>normalizeAnswer(candidate)===normalized);}
+export function choseongHint(value:string){return [...value].map(char=>{const code=char.charCodeAt(0);return code>=0xac00&&code<=0xd7a3?choseong[Math.floor((code-0xac00)/588)]:/[\p{L}\p{N}]/u.test(char)?char:' ';}).join('').replace(/ +/g,' ').trim();}
+export function firstLetterHint(value:string){let revealed=false;return [...value].map(char=>{if(/\s/u.test(char))return char;if(!revealed&&/[\p{L}\p{N}]/u.test(char)){revealed=true;return char;}return /[가-힣]/u.test(char)?'○':/[\p{L}\p{N}]/u.test(char)?'•':char;}).join('');}
+export function normalizedQuestion(value:string){return value.normalize('NFKC').toLocaleLowerCase('ko-KR').replace(/<[^>]*>/g,' ').replace(/[\s\p{P}\p{S}]+/gu,'');}
+export async function questionFingerprint(value:string){const bytes=new TextEncoder().encode(normalizedQuestion(value));const hash=await crypto.subtle.digest('SHA-256',bytes);return [...new Uint8Array(hash)].map(byte=>byte.toString(16).padStart(2,'0')).join('');}

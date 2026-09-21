@@ -1,0 +1,10 @@
+'use client';
+import {useCallback,useEffect,useLayoutEffect,useRef,useState} from 'react';
+import type {QuizSettings,QuizView} from './types';
+export function useQuiz(token:string,room:string|undefined){
+ const [data,setData]=useState<QuizView|null>(null),[loadedRoom,setLoadedRoom]=useState<string>(),[busy,setBusy]=useState(false),[error,setError]=useState('');const state=useRef(data),currentRoom=useRef(room),polling=useRef(false),acting=useRef(false);
+ useLayoutEffect(()=>{state.current=loadedRoom===room?data:null;currentRoom.current=room;},[data,loadedRoom,room]);
+ const request=useCallback(async(action:string,extra:Record<string,unknown>={})=>{if(!token||!room)return false;const isPoll=action==='get';if(isPoll&&polling.current||!isPoll&&acting.current)return false;if(isPoll)polling.current=true;else{acting.current=true;setBusy(true);}try{const response=await fetch('/api/games/quiz',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,room,action,gameId:state.current?.id,number:state.current?.number,...extra}),signal:AbortSignal.timeout(25000)});const result=await response.json() as {state?:QuizView|null;error?:string};if(!response.ok)throw new Error(result.error??'퀴즈에 연결하지 못했습니다.');if(currentRoom.current===room){state.current=result.state??null;setData(result.state??null);setLoadedRoom(room);if(!isPoll)setError('');}return true;}catch(e){if(currentRoom.current===room)setError(e instanceof Error?e.message:'퀴즈 연결 오류');return false;}finally{if(isPoll)polling.current=false;else{acting.current=false;setBusy(false);}}},[token,room]);
+ useEffect(()=>{if(!token||!room)return;let live=true;const poll=async()=>{if(live)await request('get');};void poll();const timer=setInterval(()=>void poll(),1000);return()=>{live=false;clearInterval(timer);};},[token,room,request]);
+ return {data:loadedRoom===room?data:null,busy,error,request,start:(settings:QuizSettings)=>request('start',{settings})};
+}

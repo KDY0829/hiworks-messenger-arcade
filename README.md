@@ -10,6 +10,7 @@
 - 이미지 미리 보기·파일 다운로드, 파일당 512KB / 방당 100개
 - Windows 앱 창과 트레이 지원
 - 채팅방에서 검 강화·판매·상점·장비 기록, 사용자별 진행 저장
+- 채팅 입력으로 푸는 싱글·멀티 상식 퀴즈, 단계별 힌트와 중복 방지
 
 ## 사용하기
 
@@ -103,3 +104,15 @@ API 검증은 실제 핸들러와 SQLite를 사용하고 R2에는 메모리 어�
 - `node scripts/test-messenger.mjs`: 실제 핸들러·SQLite와 모의 provider HTTP 응답으로 전체 흐름·정보 비공개·중복 요청·오류 처리를 검증합니다. 실제 유료 API 연동은 각 사용자의 Key 및 모델 접근 권한으로 별도 확인해야 합니다.
 
 모델과 호출 형식 참고: [OpenAI](https://developers.openai.com/api/docs/models/gpt-4.1-mini), [Gemini](https://ai.google.dev/gemini-api/docs/models), [Claude](https://platform.claude.com/docs/en/models/overview).
+
+## 상식 퀴즈
+
+대화방 메뉴 → 상식 퀴즈에서 난이도(초등·중등·고등·대학), 분야, 5·10·20문제 또는 무한 모드를 선택합니다. 혼자 있는 방에서도 시작할 수 있습니다. 문제의 답은 기존 입력창에 작성하며 말풍선 버튼으로 일반 대화 모드를 전환합니다. 5초 뒤 초성, 10초 뒤 첫 글자·분야, 15초 뒤 정답이 채팅 시스템 메시지로 표시됩니다. 멀티플레이에서는 서버에 먼저 저장된 정답자가 힌트 단계에 따라 3·2·1점을 얻습니다.
+
+- `games/general-quiz/config.ts`: 힌트 시각, 점수, 재입력 간격, 문제 수, 중복 제외 기간, 문제 풀 목표와 provider 우선순위
+- `games/general-quiz/providers/`: 공통 `QuizProvider`와 Wikidata, OpenTDB, The Trivia API 어댑터. 새 공급자는 인터페이스를 구현하고 registry에 등록합니다.
+- `games/general-quiz/store.ts`: D1 문제 캐시, SHA-256 fingerprint, provider ID 중복 제거, 사용자별 최근 30일 이력과 카테고리 분산 선택
+- `games/general-quiz/engine.ts`: 정답 정규화, 초성·추가 힌트, 선착순 점수, 싱글·멀티 상태 전이
+- 외부 API는 게임 중 문제마다 호출하지 않습니다. 게임 시작 시 서버 캐시를 우선 사용하고, 풀이 가능한 최소량을 확보한 상태에서 하루가 지났거나 강제 갱신할 때만 작은 배치로 보충합니다. 장애 시에는 기존 D1 캐시와 작은 비상 문제 묶음을 사용합니다.
+
+문제 공급원, 이용 조건과 운영 제한은 [public/quiz-sources.md](public/quiz-sources.md)를 확인합니다. OpenTDB/The Trivia API의 영문 문제는 교체 가능한 번역 함수가 제공되지 않으면 한국어 게임 풀에 넣지 않습니다.

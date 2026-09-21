@@ -1,0 +1,9 @@
+import type {QuizCategory,QuizDifficulty} from '../types';
+import type {ProviderFetchContext,ProviderFetchResult,QuizProvider} from './types';
+type Row={id:string;category:string;correctAnswer:string;question:{text:string};difficulty:'easy'|'medium'|'hard';isNiche?:boolean};
+const category=(value:string):Exclude<QuizCategory,'all'>=>value==='history'?'history':value==='science'?'science':value==='geography'?'geography':value==='food_and_drink'?'food':value==='sport_and_leisure'?'sports':value==='arts_and_literature'?'art':value==='society_and_culture'?'culture':'general';
+const difficulty=(row:Row):QuizDifficulty=>row.difficulty==='easy'?'elementary':row.difficulty==='medium'?(row.isNiche?'high':'middle'):(row.isNiche?'university':'high');
+export const triviaApi:QuizProvider={id:'trivia-api',name:'The Trivia API',license:'CC BY-NC 4.0 (기본 수집 비활성)',source:'https://the-trivia-api.com/',enabledByDefault:false,
+ async healthCheck(signal){const response=await fetch('https://the-trivia-api.com/v2/questions?limit=1',{signal});return response.ok;},
+ async fetchQuestions(context:ProviderFetchContext):Promise<ProviderFetchResult>{const response=await fetch(`https://the-trivia-api.com/v2/questions?limit=${Math.min(50,context.limit)}`,{signal:context.signal});if(!response.ok)throw new Error('Trivia API request failed');const rows=await response.json() as Row[];const questions=[];for(const row of rows){const question=/[가-힣]/.test(row.question.text)?row.question.text:await context.translate?.(row.question.text);const answer=/[가-힣]/.test(row.correctAnswer)?row.correctAnswer:await context.translate?.(row.correctAnswer);if(!question||!answer)continue;questions.push({provider:'trivia-api',providerQuestionId:row.id,question,answer,acceptedAnswers:[row.correctAnswer],difficulty:difficulty(row),category:category(row.category),source:'https://the-trivia-api.com/'});}return {questions};}
+};

@@ -116,6 +116,10 @@ Replace the filename with the pending migration and `DB` with your D1 binding na
 - `npm run start`: preview the built Worker locally with D1/R2 support
 - `npm run db:generate`: generate Drizzle migrations after schema changes
 
+## Quiz providers
+
+`games/general-quiz/providers/types.ts`의 `QuizProvider`를 구현하고 `providers/registry.ts`에 등록하면 lazy refresh 파이프라인에 참여합니다. 어댑터는 공통 문제 형식으로 변환하고 원본 ID·출처·라이선스를 유지해야 합니다. 한국어가 아닌 공급자는 `ProviderFetchContext.translate`를 통해 질문과 정답을 함께 번역해야 하며 번역기가 없으면 문제를 반환하지 않습니다. 숫자 조정은 `games/general-quiz/config.ts`, 난이도·카테고리 매핑은 각 provider 파일에서 관리합니다. 새 문제 테이블은 `drizzle/0004_wide_multiple_man.sql` 이후의 새 마이그레이션으로만 변경합니다.
+
 When using the Sites plugin, follow its skill instructions for installation, builds, and publishing. These npm commands remain available for standalone use.
 
 The portable build runs Vinext directly without a host `timeout` command. The managed-linux build uses `scripts/build-verified.sh` and its existing `SITES_BUILD_TIMEOUT` setting.

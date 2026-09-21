@@ -1,0 +1,4 @@
+'use client';
+import {Button} from '@/components/ui/button';
+import type {QuizView} from './types';
+export function QuizPanel({state,busy,error,now,onAction,creator}:{state:QuizView;busy:boolean;error:string;now:number;onAction:(action:string,extra?:Record<string,unknown>)=>Promise<boolean>;creator:boolean}){if(state.stage==='finished')return null;const remaining=Math.max(0,Math.ceil((state.deadline-now)/1000));return <div className="quiz-panel"><div><span>{state.questionCount?`${state.number}/${state.questionCount}`:`${state.number}번`} · {state.stage==='question'?(state.hintStage===0?`힌트까지 ${Math.max(0,Math.ceil((state.openedAt+5000-now)/1000))}초`:`정답까지 ${remaining}초`):state.stage==='loading'?'문제 준비 중':`다음 문제 ${remaining}초`}</span>{creator&&<Button size="sm" variant="ghost" disabled={busy} onClick={()=>onAction('stop')}>종료</Button>}</div><span>내 점수 {state.myScore} · 답변 {state.attempts}/{state.maxAttempts}</span>{error&&<p role="alert">{error}</p>}</div>;}

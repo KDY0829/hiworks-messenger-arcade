@@ -6,7 +6,7 @@ function log(r:Room,name:string,text:string,system=true){message(r,name,text,sys
 export function active(r:Room){return !!r.infiltrator&&r.infiltrator.stage!=='finished';}
 function question(r:Room,now:number){const s=r.infiltrator!;s.stage='generating';s.answers={};s.attempts=0;s.lease='';s.error='';s.deadline=now+config.generationSeconds*1000;log(r,'알림',`${s.round+1}/${s.rounds} · ${s.questions[s.round]}`);}
 export function start(r:Room,settings:Settings,now:number,random=()=>crypto.getRandomValues(new Uint32Array(1))[0]/4294967296){
- if(active(r)||r.phase==='playing')throw new Error('이미 게임이 진행 중입니다.');
+ if(active(r)||r.phase==='playing'||(r.quiz&&r.quiz.stage!=='finished'))throw new Error('이미 게임이 진행 중입니다.');
  const players=r.players.filter(p=>now-p.seen<15000);
  if(players.length!==settings.participants||players.length<config.minPlayers||players.length>config.maxPlayers)throw new Error('설정한 인원과 접속 중인 참여 인원이 일치해야 합니다.');
  const questions:string[]=[...questionSets[settings.questionSet].questions];for(let i=questions.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[questions[i],questions[j]]=[questions[j],questions[i]];}

@@ -12,6 +12,7 @@ export function Portrait({name,photoId,group=false}:{name:string;photoId?:string
 }
 export default function MessengerHome({token,name,onName,onOpen,onCreate,onQuiet,onResize}:{token:string;name:string;onName:(name:string)=>void;onOpen:(id:string,direct?:boolean)=>Promise<void>;onCreate:(code:string)=>Promise<void>;onQuiet:()=>void;onResize:()=>void}){
  const [data,setData]=useState<Data|null>(null),[tab,setTab]=useState<'chats'|'friends'|'files'>('chats'),[search,setSearch]=useState(''),[dialog,setDialog]=useState<'profile'|'friend'|'new'|null>(null),[editName,setEditName]=useState(name),[status,setStatus]=useState('근무 중'),[friendId,setFriendId]=useState(''),[roomCode,setRoomCode]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[more,setMore]=useState(false),[copied,setCopied]=useState(false);
+ const [calendarNow]=useState(()=>Date.now());
  const photo=useRef<HTMLInputElement>(null),sequence=useRef(0);
  const api=useCallback(async(action:string,extra:Record<string,unknown>={})=>{
   const number=++sequence.current;
@@ -32,7 +33,7 @@ export default function MessengerHome({token,name,onName,onOpen,onCreate,onQuiet
   const res=await fetch('/api/files',{method:'POST',body:form,signal:AbortSignal.timeout(30000)});const result=await res.json() as {error?:string};if(!res.ok)throw new Error(result.error??'사진을 저장하지 못했습니다.');await api('list');if(photo.current)photo.current.value='';
  });
  const openProfile=()=>{setEditName(data?.profile.name??name);setStatus(data?.profile.status??'근무 중');setDialog('profile');setMore(false);};
- const date=(time:number)=>{const d=new Date(time),today=new Date();return d.toDateString()===today.toDateString()?new Intl.DateTimeFormat('ko-KR',{hour:'numeric',minute:'2-digit'}).format(d):d.toDateString()===new Date(Date.now()-86400000).toDateString()?'어제':d.toLocaleDateString('sv-SE');};
+ const date=(time:number)=>{const d=new Date(time),today=new Date(calendarNow);return d.toDateString()===today.toDateString()?new Intl.DateTimeFormat('ko-KR',{hour:'numeric',minute:'2-digit'}).format(d):d.toDateString()===new Date(calendarNow-86400000).toDateString()?'어제':d.toLocaleDateString('sv-SE');};
  const friends=data?.friends.filter(f=>`${f.name} ${f.status}`.includes(search))??[];
  const recent=data?.rooms.filter(r=>`${r.names.join(' ')} ${r.last}`.includes(search))??[];
  return <section className="messenger messenger-home" aria-label="메신저 메인">
