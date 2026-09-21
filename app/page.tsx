@@ -24,6 +24,7 @@ export default function Home(){
  const sword=useSword(token,room?.id);
  const infiltrator=useInfiltrator(token,room?.id);
  const quiz=useQuiz(token,room?.id);
+ const quizData=quiz.data,quizRequest=quiz.request,lastRoomMessageId=room?.messages.at(-1)?.id;
  const [aiChat,setAiChat]=useState(false);
  const aiActive=!!infiltrator.data&&infiltrator.data.stage!=='finished';
  const quizActive=!!quiz.data&&quiz.data.stage!=='finished';
@@ -58,6 +59,7 @@ export default function Home(){
   el.scrollTop=saved.atBottom?el.scrollHeight:saved.top;
   saved.top=el.scrollTop;
  },[quiet,hub,room?.id,room?.messages.at(-1)?.id,sword.data?.state.activeRoom,sword.data?.state.result,quiz.data?.number,quiz.data?.stage]);
+ useEffect(()=>{if(quiet||hub||quizData?.stage!=='ready'||!quizData.question)return;const question=quizData.question,frame=requestAnimationFrame(()=>{const list=conversation.current;if(!list)return;const bounds=list.getBoundingClientRect(),visible=[...list.querySelectorAll<HTMLElement>('.message.system')].some(element=>{const rect=element.getBoundingClientRect();return element.textContent?.includes(question)&&rect.bottom>bounds.top&&rect.top<bounds.bottom;});if(visible)void quizRequest('ready');});return()=>cancelAnimationFrame(frame);},[quiet,hub,lastRoomMessageId,quizData?.id,quizData?.number,quizData?.stage,quizData?.question,quizRequest]);
  useEffect(()=>{const handler=(e:KeyboardEvent)=>{if(e.key==='Escape'){setQuiet(q=>!q);setMenu(false);setPeople(false);}};window.addEventListener('keydown',handler);return()=>window.removeEventListener('keydown',handler);},[]);
  const openRoom=async(id:string,direct=false)=>{const r=await send('join',{room:id,name});if(!r)throw new Error('대화방에 연결하지 못했습니다. 코드를 확인해 주세요.');if(r){setHub(false);setChat(direct||!!r.direct);setDraft('');setSearch('');setShowSearch(false);setPeople(false);}};
  const backToList=()=>{setHub(true);setMenu(false);setPeople(false);setError('');const url=new URL(location.href);url.searchParams.delete('room');history.replaceState(null,'',url);};

@@ -8,11 +8,11 @@ export type QuizSettings={difficulty:QuizDifficulty;category:QuizCategory;questi
 export type QuizPlayer={id:string;name:string};
 export type QuizStats={correct:number;wrong:number;streak:number;bestStreak:number;responseTotal:number};
 export type QuizState=QuizSettings&{
- id:string;creator:string;players:QuizPlayer[];stage:'question'|'result'|'loading'|'finished';number:number;
+ id:string;creator:string;players:QuizPlayer[];stage:'ready'|'question'|'result'|'loading'|'finished';number:number;
  queue:QuizQuestion[];cursor:number;current:QuizQuestion|null;openedAt:number;deadline:number;hintStage:0|1|2;
  scores:Record<string,number>;stats:Record<string,QuizStats>;attempts:Record<string,number>;lastAttemptAt:Record<string,number>;
  categoryHistory:string[];usedFingerprints:string[];completedFingerprint:string;historyRecorded:boolean;
- winner:string;nextAt:number;cancelled:boolean;
+ readyPlayers:string[];readyDeadline:number;winner:string;nextAt:number;cancelled:boolean;
 };
 export type QuizView=QuizSettings&{
  id:string;creator:string;players:QuizPlayer[];stage:QuizState['stage'];number:number;deadline:number;openedAt:number;
