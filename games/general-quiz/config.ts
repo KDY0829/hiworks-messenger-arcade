@@ -1,4 +1,5 @@
-import type {QuizCategory,QuizDifficulty} from './types';
+import type {QuizCategory,QuizDifficulty,QuizQuestion} from './types';
+const retiredWikidataKinds=['currency:','elementSymbol:','atomicNumber:'];
 export const quizConfig={
  readyTimeoutMs:8_000,choseongAtMs:5_000,extraHintAtMs:10_000,revealAtMs:15_000,resultPauseMs:1_600,
  answerCooldownMs:1_500,maxAttemptsPerQuestion:4,historyCooldownDays:30,
@@ -18,3 +19,4 @@ export const quizConfig={
  providerPriority:['wikidata','opentdb','trivia-api'] as const,
 };
 export function quizCategoryName(id:QuizCategory){return quizConfig.categories.find(category=>category.id===id)?.name??id;}
+export function retiredQuizQuestion(question:Pick<QuizQuestion,'provider'|'providerQuestionId'>){return question.provider==='wikidata'&&retiredWikidataKinds.some(prefix=>question.providerQuestionId?.startsWith(prefix));}
