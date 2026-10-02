@@ -102,7 +102,7 @@ export default function Home(){
       <InfiltratorSettings secret={infiltrator.key} setSecret={infiltrator.setKey} busy={infiltrator.busy||busy||aiActive||quizActive||room.phase==='playing'} host={host} help={gameHelp} onTest={(provider,model)=>infiltrator.request('test',{provider,model,key:infiltrator.key})} onStart={async settings=>{if(await infiltrator.start(settings)){setMenu(false);setAiChat(false);return true;}return false;}}/>
       {infiltrator.error&&<p className="error" role="alert">{infiltrator.error}</p>}
      </>:menuGame==='quiz'?<>
-      <QuizSettings busy={quiz.busy||busy||quizActive||aiActive||room.phase==='playing'} host={host} help={gameHelp} onStart={async settings=>{if(await quiz.start(settings)){setMenu(false);setAiChat(false);return true;}return false;}}/>
+      <QuizSettings secret={quiz.key} setSecret={quiz.setKey} busy={quiz.busy||busy||quizActive||aiActive||room.phase==='playing'} host={host} help={gameHelp} onTest={(provider,model)=>quiz.request('test',{provider,model,key:quiz.key})} onStart={async settings=>{if(await quiz.start(settings)){setMenu(false);setAiChat(false);return true;}return false;}}/>
       {quiz.error&&<p className="error" role="alert">{quiz.error}</p>}
      </>:<>
       <Button variant="outline" className="full" disabled={busy||sword.busy||room.phase==='playing'||!sword.data} onClick={async()=>{if(await sword.action('start')){setMenu(false);setChat(true);}}}>{sword.data?.state.activeRoom===room.id?'게임 이어하기':'게임 시작'}</Button>

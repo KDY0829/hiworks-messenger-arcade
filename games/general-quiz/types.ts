@@ -1,10 +1,12 @@
 export type QuizDifficulty='elementary'|'middle'|'high'|'university';
 export type QuizCategory='all'|'history'|'science'|'geography'|'society'|'culture'|'literature'|'art'|'technology'|'food'|'sports'|'general';
+export type QuizSource='builtin'|'ai';
 export type QuizQuestion={
  id:string;provider:string;providerQuestionId:string|null;question:string;answer:string;acceptedAnswers:string[];
  difficulty:QuizDifficulty;category:Exclude<QuizCategory,'all'>;source:string;fingerprint:string;
+ kind?:'short'|'choice';displayAnswer?:string;
 };
-export type QuizSettings={difficulty:QuizDifficulty;category:QuizCategory;questionCount:5|10|20|0};
+export type QuizSettings={difficulty:QuizDifficulty;category:QuizCategory;questionCount:5|10|20|0;source:QuizSource;provider?:string;model?:string};
 export type QuizPlayer={id:string;name:string};
 export type QuizStats={correct:number;wrong:number;streak:number;bestStreak:number;responseTotal:number};
 export type QuizState=QuizSettings&{
@@ -17,5 +19,5 @@ export type QuizState=QuizSettings&{
 export type QuizView=QuizSettings&{
  id:string;creator:string;players:QuizPlayer[];stage:QuizState['stage'];number:number;deadline:number;openedAt:number;
  hintStage:0|1|2;question:string;hint:string;extraHint:string;answer:string;participating:boolean;
- attempts:number;maxAttempts:number;myScore:number;scores:{id:string;name:string;score:number}[];stats:QuizStats;cancelled:boolean;
+ attempts:number;maxAttempts:number;myScore:number;scores:{id:string;name:string;score:number}[];stats:QuizStats;cancelled:boolean;choice:boolean;
 };

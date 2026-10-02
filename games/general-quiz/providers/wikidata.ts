@@ -28,7 +28,7 @@ function mapped(kind:Kind,subjectId:string):{difficulty:QuizDifficulty;category:
  return {difficulty,category:'art',question:subject=>`음악 작품 《${subject}》${objectParticle(subject)} 작곡한 사람은 누구일까요?`};
 }
 function aliases(answer:string){const common:Record<string,string[]>= {'도쿄도':['도쿄'],'서울특별시':['서울'],'베이징시':['베이징'],'워싱턴 D.C.':['워싱턴','워싱턴 DC']};if(common[answer])return common[answer];const words=answer.trim().split(/\s+/);if(words.length<2)return [];return [answer.includes(' 다 ')?words.slice(-2).join(' '):words.at(-1)!];}
-export const wikidata:QuizProvider={id:'wikidata',name:'Wikidata',license:'CC0 1.0',source:'https://www.wikidata.org/',enabledByDefault:true,
+export const wikidata:QuizProvider={id:'wikidata',name:'Wikidata',license:'CC0 1.0',source:'https://www.wikidata.org/',enabledByDefault:false,
  async healthCheck(signal){const response=await fetch('https://www.wikidata.org/wiki/Special:EntityData/Q884.json',{headers:{Accept:'application/json'},signal});return response.ok;},
  async fetchQuestions(context:ProviderFetchContext):Promise<ProviderFetchResult>{
   const unions=definitions.map(definition=>`{ VALUES ?subject { ${definition.subjects.map(value=>`wd:${value}`).join(' ')} } ?subject wdt:${definition.property} ?answer. BIND("${definition.kind}" AS ?kind) }`).join(' UNION ');

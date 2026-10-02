@@ -1,0 +1,18 @@
+KorNAT dataset notice
+
+Dataset: KorNAT
+Authors: Ji-Young Lee et al.
+Source: https://huggingface.co/datasets/jiyounglee0523/KorNAT
+Pinned revision: 1753e2f5a3a83e2294766361b2faff7f9804f0bf
+Paper: KorNAT: LLM Alignment Benchmark for Korean Social Values and Common Knowledge
+
+The bundled quiz bank contains adapted and filtered Common Knowledge (Korean)
+items from KorNAT. KorNAT is distributed under Creative Commons
+Attribution-NonCommercial 2.0 (CC BY-NC 2.0):
+https://creativecommons.org/licenses/by-nc/2.0/
+
+The material was transformed into a compact chat multiple-choice format,
+filtered for quality and prohibited question types, categorized, and assigned
+local difficulty buckets. This notice does not change the license of the rest
+of this repository. Commercial users must obtain appropriate permission or
+replace the bundled question bank.

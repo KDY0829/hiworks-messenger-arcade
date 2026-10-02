@@ -103,16 +103,19 @@ API 검증은 실제 핸들러와 SQLite를 사용하고 R2에는 메모리 어�
 - `games/ai-infiltrator/questions.ts`: 질문 세트. `engine.ts`: 순수 상태 전이·시간·승패·비공개 view·프롬프트. `settings.tsx`, `panel.tsx`, `use-infiltrator.ts`: 작은 채팅 UI와 개인 동기화. 이 구현을 AI 기반 게임 예제로 참고하세요. 클라이언트 레지스트리에 서버 어댑터를 import하지 않습니다.
 - `node scripts/test-messenger.mjs`: 실제 핸들러·SQLite와 모의 provider HTTP 응답으로 전체 흐름·정보 비공개·중복 요청·오류 처리를 검증합니다. 실제 유료 API 연동은 각 사용자의 Key 및 모델 접근 권한으로 별도 확인해야 합니다.
 
-모델과 호출 형식 참고: [OpenAI](https://developers.openai.com/api/docs/models/gpt-4.1-mini), [Gemini](https://ai.google.dev/gemini-api/docs/models), [Claude](https://platform.claude.com/docs/en/models/overview).
+모델과 호출 형식 참고: [OpenAI](https://developers.openai.com/api/docs/models/gpt-5.4-nano), [Gemini](https://ai.google.dev/gemini-api/docs/models), [Claude](https://platform.claude.com/docs/en/models/overview).
 
 ## 상식 퀴즈
 
-대화방 메뉴 → 상식 퀴즈에서 난이도(초등·중등·고등·대학), 분야, 5·10·20문제 또는 무한 모드를 선택합니다. 혼자 있는 방에서도 시작할 수 있습니다. 문제의 답은 기존 입력창에 작성하며 말풍선 버튼으로 일반 대화 모드를 전환합니다. 각 참가자의 화면에 문제 말풍선이 표시된 뒤 타이머가 시작되고, 5초 뒤 한글은 초성·영문과 숫자는 글자 수, 10초 뒤 첫 글자·분야, 15초 뒤 정답이 채팅 시스템 메시지로 표시됩니다. 멀티플레이에서는 서버에 먼저 저장된 정답자가 힌트 단계에 따라 3·2·1점을 얻습니다.
+대화방 메뉴 → 상식 퀴즈에서 `기본 문제 4,000개` 또는 `API Key로 새 문제`를 선택합니다. 혼자 있는 방에서도 시작할 수 있고, 답은 기존 입력창에 작성합니다. 기본 문제는 검수된 한국어 객관식으로 30초 동안 정답 번호를 입력합니다. AI 문제는 한국어 단답형이며 5초·10초 힌트와 15초 제한을 사용합니다. 멀티플레이에서는 서버에 먼저 저장된 정답자가 힌트 단계에 따라 3·2·1점을 얻습니다.
 
-- `games/general-quiz/config.ts`: 힌트 시각, 점수, 재입력 간격, 문제 수, 중복 제외 기간, 문제 풀 목표와 provider 우선순위
-- `games/general-quiz/providers/`: 공통 `QuizProvider`와 Wikidata, OpenTDB, The Trivia API 어댑터. 새 공급자는 인터페이스를 구현하고 registry에 등록합니다.
-- `games/general-quiz/store.ts`: D1 문제 캐시, SHA-256 fingerprint, provider ID 중복 제거, 사용자별 최근 30일 이력과 카테고리 분산 선택
+- `games/general-quiz/builtin/`: KorNAT에서 품질 필터와 분야별 균형 선별을 거친 4,000문항. 유지보수 가능한 작은 JSON 묶음으로 나뉘며 서버에서만 import하므로 클라이언트 번들에는 포함되지 않습니다.
+- `scripts/build-quiz-bank.py`: 고정된 KorNAT 원본 revision으로 내장 문제 은행을 재생성합니다. 원본 Parquet 경로를 인자로 전달합니다.
+- `games/general-quiz/config.ts`: 제한 시간, 힌트 시각, 점수, 문제 수와 사용자에게 노출할 분야
+- `games/general-quiz/ai.ts`: BYOK 한 번 호출로 선택한 문제 수를 생성하고 금지 유형·형식·중복을 검증합니다.
+- `games/general-quiz/store.ts`: 내장/D1 문제 통합 선택, SHA-256 fingerprint, 사용자별 최근 30일 이력과 분야 분산
 - `games/general-quiz/engine.ts`: 정답 정규화, 초성·추가 힌트, 선착순 점수, 싱글·멀티 상태 전이
-- 외부 API는 게임 중 문제마다 호출하지 않습니다. 게임 시작 시 서버 캐시를 우선 사용하고, 풀이 가능한 최소량을 확보한 상태에서 하루가 지났거나 강제 갱신할 때만 작은 배치로 보충합니다. 장애 시에는 기존 D1 캐시와 작은 비상 문제 묶음을 사용합니다.
+- AI Key는 AI 잠입자와 동일하게 화면 메모리에만 두고 시작 요청에서만 서버로 전달합니다. D1·방 상태·채팅·로그에는 저장하지 않으며 새로고침하면 다시 입력해야 합니다. 문제별로 호출하지 않고 시작 시 선택 수량을 한 번에 생성합니다.
+- AI 제공자와 모델 목록은 공용 `ai/config.ts` 한 곳에서 관리합니다. 기본 추천은 `gpt-5.4-nano`이며 Gemini·Claude도 기존 BYOK 어댑터를 재사용합니다.
 
-문제 공급원, 이용 조건과 운영 제한은 [public/quiz-sources.md](public/quiz-sources.md)를 확인합니다. OpenTDB/The Trivia API의 영문 문제는 교체 가능한 번역 함수가 제공되지 않으면 한국어 게임 풀에 넣지 않습니다.
+문제 공급원, 이용 조건과 운영 제한은 [public/quiz-sources.md](public/quiz-sources.md)를 확인합니다. KorNAT는 CC BY-NC 2.0이므로 상업적 사용자는 별도 권리 확인이 필요합니다.

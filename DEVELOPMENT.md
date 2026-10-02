@@ -116,9 +116,15 @@ Replace the filename with the pending migration and `DB` with your D1 binding na
 - `npm run start`: preview the built Worker locally with D1/R2 support
 - `npm run db:generate`: generate Drizzle migrations after schema changes
 
-## Quiz providers
+## General quiz data and BYOK generation
 
-`games/general-quiz/providers/types.ts`의 `QuizProvider`를 구현하고 `providers/registry.ts`에 등록하면 lazy refresh 파이프라인에 참여합니다. 어댑터는 공통 문제 형식으로 변환하고 원본 ID·출처·라이선스를 유지해야 합니다. 한국어가 아닌 공급자는 `ProviderFetchContext.translate`를 통해 질문과 정답을 함께 번역해야 하며 번역기가 없으면 문제를 반환하지 않습니다. 숫자 조정은 `games/general-quiz/config.ts`, 난이도·카테고리 매핑은 각 provider 파일에서 관리합니다. 새 문제 테이블은 `drizzle/0004_wide_multiple_man.sql` 이후의 새 마이그레이션으로만 변경합니다.
+The default bank is the committed, server-only `games/general-quiz/builtin/` chunks. To reproduce it, download the pinned KorNAT `Common Knowledge (Kor)` Parquet revision documented in `public/quiz-sources.md`, install `pandas` and `pyarrow` outside the application dependency tree, then run `python scripts/build-quiz-bank.py <parquet>`. Keep the output at exactly 4,000 unique stable IDs and preserve `public/kornat-license.txt`.
+
+Question selection and user history belong in `games/general-quiz/store.ts`; timing and scoring belong in `engine.ts`; editable balance and visible categories belong in `config.ts`. Do not import the bank from a client component.
+
+AI-generated quiz questions reuse `ai/config.ts` and `ai/providers/`. Add a model to the provider metadata once so both BYOK games receive it. A new provider needs a fixed server-side endpoint adapter plus its registry entry; never accept a provider URL from a user. `games/general-quiz/ai.ts` owns the compact prompt and validation. Keys are request-only and must not enter room state, D1, messages, logs, browser storage, or generated fixtures.
+
+The older `QuizProvider` adapters are disabled as default data sources. If re-enabled, preserve origin IDs and licenses, return no untranslated English content, and update source documentation. Schema changes require a new migration after `drizzle/0004_wide_multiple_man.sql`; never edit a deployed migration.
 
 When using the Sites plugin, follow its skill instructions for installation, builds, and publishing. These npm commands remain available for standalone use.
 

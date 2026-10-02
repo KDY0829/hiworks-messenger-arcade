@@ -1,4 +1,4 @@
-export type GenerateInput={key:string;model:string;prompt:string};
+export type GenerateInput={key:string;model:string;prompt:string;maxTokens?:number};
 export type AIProvider={generate(input:GenerateInput):Promise<string>};
 export class ProviderError extends Error {constructor(public code:'auth'|'quota'|'model'|'network'|'empty'){super(code);}}
 export async function request(url:string,headers:Record<string,string>,body:unknown){
