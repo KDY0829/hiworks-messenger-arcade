@@ -5,7 +5,7 @@ import type {Settings} from '@/games/ai-infiltrator/types';
 import {questionSets} from '@/games/ai-infiltrator/questions';
 import {validModel} from '@/ai/config';
 import {generate} from '@/ai/providers/registry';
-import {ProviderError,errorMessages} from '@/ai/providers/types';
+import {ProviderError} from '@/ai/providers/types';
 export const dynamic='force-dynamic';
 const fail=(error:string,status=400)=>Response.json({error},{status,headers:{'Cache-Control':'no-store'}});
 const response=(room:Room,token:string)=>Response.json({state:privateView(room,token)},{headers:{'Cache-Control':'no-store'}});
@@ -27,7 +27,7 @@ export async function POST(req:Request){
     if(r.host!==b.token)return fail('방장만 연결을 테스트할 수 있습니다.',403);
     if(now-(r.aiTestAt??0)<5000)return fail('잠시 후 다시 테스트해 주세요.',429);
     r.aiTestAt=now;if(!await save(r,current.revision))continue;
-    try{await generate(b.provider,b.model,b.key,'한국어로 확인이라고만 답해라.');return Response.json({connected:true},{headers:{'Cache-Control':'no-store'}});}catch(e){return fail(e instanceof ProviderError?errorMessages[e.code]:'연결 테스트에 실패했습니다.',400);}
+    try{await generate(b.provider,b.model,b.key,'한국어로 확인이라고만 답해라.');return Response.json({connected:true},{headers:{'Cache-Control':'no-store'}});}catch(e){return fail(e instanceof ProviderError?e.message:'연결 테스트에 실패했습니다.',400);}
    }
    if(b.action==='start'){
     if(r.host!==b.token)return fail('방장만 시작할 수 있습니다.',403);
@@ -51,7 +51,7 @@ export async function POST(req:Request){
    break;
   }
   if(!lease)return fail('요청이 겹쳤습니다. 다시 확인해 주세요.',409);
-  let text='',error='';try{text=await generate(provider,model,b.key,prompt(question,round));}catch(e){error=e instanceof ProviderError?errorMessages[e.code]:'AI 응답을 받지 못했습니다.';}
+  let text='',error='';try{text=await generate(provider,model,b.key,prompt(question,round));}catch(e){error=e instanceof ProviderError?e.message:'AI 응답을 받지 못했습니다.';}
   for(let attempt=0;attempt<5;attempt++){
    const current=await load();if(!current)return fail('대화방을 찾을 수 없습니다.',404);
    const r=current.room;if(r.infiltrator?.id!==gameId||r.infiltrator.round!==round||!complete(r,lease,text,error,Date.now()))return response(r,b.token);

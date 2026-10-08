@@ -6,7 +6,7 @@ import {ensureQuestionPool,recordQuestionHistory,selectQuestions} from '@/games/
 import type {QuizSettings} from '@/games/general-quiz/types';
 import {generateQuizQuestions} from '@/games/general-quiz/ai';
 import {generate} from '@/ai/providers/registry';
-import {ProviderError,errorMessages} from '@/ai/providers/types';
+import {ProviderError} from '@/ai/providers/types';
 import {validModel} from '@/ai/config';
 export const dynamic='force-dynamic';
 const fail=(error:string,status=400)=>Response.json({error},{status,headers:{'Cache-Control':'no-store'}});
@@ -27,7 +27,7 @@ export async function POST(req:Request){
    if(body.action==='test'){
     if(room.host!==body.token)return fail('방장만 연결을 테스트할 수 있습니다.',403);if(now-(room.aiTestAt??0)<5000)return fail('잠시 후 다시 테스트해 주세요.',429);
     room.aiTestAt=now;if(!await save(room,current.revision))continue;
-    try{await generate(String(body.provider??''),String(body.model??''),String(body.key??''),'한국어로 확인이라고만 답해라.');return Response.json({connected:true},{headers:{'Cache-Control':'no-store'}});}catch(error){return fail(error instanceof ProviderError?errorMessages[error.code]:'연결 테스트에 실패했습니다.');}
+    try{await generate(String(body.provider??''),String(body.model??''),String(body.key??''),'한국어로 확인이라고만 답해라.');return Response.json({connected:true},{headers:{'Cache-Control':'no-store'}});}catch(error){return fail(error instanceof ProviderError?error.message:'연결 테스트에 실패했습니다.');}
    }
    if(activeQuiz(room)&&room.quiz!.stage==='loading'){const next=room.quiz!.source==='ai'?undefined:(await selectQuestions(db,{difficulty:room.quiz!.difficulty,category:room.quiz!.category,questionCount:room.quiz!.questionCount,source:'builtin'},room.quiz!.players.map(player=>player.id),1,room.quiz!.usedFingerprints))[0];if(next){supplyNextQuestion(room,now,next);changed=true;}else{stopQuiz(room);changed=true;}}
    if(body.action==='start'){
@@ -35,7 +35,7 @@ export async function POST(req:Request){
     if(activeQuiz(room)||room.phase==='playing'||(room.infiltrator&&room.infiltrator.stage!=='finished'))return fail('이미 게임이 진행 중입니다.');const activePlayers=room.players.filter(player=>now-player.seen<15000);if(!activePlayers.length)return fail('접속 중인 참여자가 필요합니다.');
     if(!prepared){const count=body.settings.questionCount||20;if(body.settings.source==='ai'){
       if(room.quizPrepare&&room.quizPrepare.expires>now&&room.quizPrepare.lease!==prepareLease)return fail('AI 문제를 준비 중입니다. 잠시만 기다려 주세요.',409);
-      prepareLease=crypto.randomUUID();room.quizPrepare={lease:prepareLease,creator:body.token,expires:now+60_000};if(!await save(room,current.revision)){prepareLease='';continue;}
+      prepareLease=crypto.randomUUID();room.quizPrepare={lease:prepareLease,creator:body.token,expires:now+90_000};if(!await save(room,current.revision)){prepareLease='';continue;}
       try{prepared=await generateQuizQuestions(body.settings,String(body.key??''),count);}catch(error){await releasePrepare();throw error;}continue;
      }else{await ensureQuestionPool(db);prepared=await selectQuestions(db,body.settings,activePlayers.map(player=>player.id),count);}}
     if(prepareLease&&room.quizPrepare?.lease!==prepareLease)return fail('게임 준비 상태가 변경되었습니다. 다시 시도해 주세요.',409);delete room.quizPrepare;
@@ -55,5 +55,5 @@ export async function POST(req:Request){
    return response(room,body.token);
   }
   await releasePrepare();return fail('메시지가 겹쳤습니다. 다시 보내 주세요.',409);
- }catch(e){const allowed=['이미 게임','접속 중인','사용할 수 있는','지금은 답','답을 입력','잠시 생각','이번 문제'];if(e instanceof ProviderError)return fail(errorMessages[e.code]);return fail(e instanceof Error&&allowed.some(prefix=>e.message.startsWith(prefix))?e.message:'퀴즈 요청을 처리하지 못했습니다.',400);}
+ }catch(e){const allowed=['이미 게임','접속 중인','사용할 수 있는','지금은 답','답을 입력','잠시 생각','이번 문제'];if(e instanceof ProviderError)return fail(e.message);return fail(e instanceof Error&&allowed.some(prefix=>e.message.startsWith(prefix))?e.message:'퀴즈 요청을 처리하지 못했습니다.',400);}
 }
