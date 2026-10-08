@@ -1,6 +1,6 @@
 import {getRawDb} from '@/db';
 import type {Room} from '@/lib/game';
-import {activeQuiz,markHistoryRecorded,markQuestionReady,quizView,startQuiz,stopQuiz,submitAnswer,supplyNextQuestion,tickQuiz} from '@/games/general-quiz/engine';
+import {activeQuiz,markHistoryRecorded,markQuestionReady,quizView,startQuiz,stopQuiz,submitAnswer,voteSkip,supplyNextQuestion,tickQuiz} from '@/games/general-quiz/engine';
 import {quizConfig} from '@/games/general-quiz/config';
 import {ensureQuestionPool,recordQuestionHistory,selectQuestions} from '@/games/general-quiz/store';
 import type {QuizSettings} from '@/games/general-quiz/types';
@@ -46,6 +46,7 @@ export async function POST(req:Request){
     const state=room.quiz;if(!state||body.gameId!==state.id||body.number!==state.number)return fail('게임 상태가 변경되었습니다. 다시 확인해 주세요.',409);
     if(body.action==='ready'){changed=markQuestionReady(room,body.token,now)||changed;}
     else if(body.action==='answer'){submitAnswer(room,body.token,String(body.text??''),now);changed=true;}
+    else if(body.action==='skip'){changed=voteSkip(room,body.token,now)||changed;}
     else if(body.action==='stop'){if(state.creator!==body.token)return fail('방장만 종료할 수 있습니다.',403);stopQuiz(room);changed=true;}
     else return fail('지원하지 않는 요청입니다.');
    }
@@ -55,5 +56,5 @@ export async function POST(req:Request){
    return response(room,body.token);
   }
   await releasePrepare();return fail('메시지가 겹쳤습니다. 다시 보내 주세요.',409);
- }catch(e){const allowed=['이미 게임','접속 중인','사용할 수 있는','지금은 답','답을 입력','잠시 생각','이번 문제'];if(e instanceof ProviderError)return fail(e.message);return fail(e instanceof Error&&allowed.some(prefix=>e.message.startsWith(prefix))?e.message:'퀴즈 요청을 처리하지 못했습니다.',400);}
+ }catch(e){const allowed=['이미 게임','접속 중인','사용할 수 있는','지금은 답','지금은 스킵','답을 입력','잠시 생각','이번 문제'];if(e instanceof ProviderError)return fail(e.message);return fail(e instanceof Error&&allowed.some(prefix=>e.message.startsWith(prefix))?e.message:'퀴즈 요청을 처리하지 못했습니다.',400);}
 }

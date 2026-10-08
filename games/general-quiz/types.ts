@@ -14,10 +14,11 @@ export type QuizState=QuizSettings&{
  queue:QuizQuestion[];cursor:number;current:QuizQuestion|null;openedAt:number;deadline:number;hintStage:0|1|2;
  scores:Record<string,number>;stats:Record<string,QuizStats>;attempts:Record<string,number>;lastAttemptAt:Record<string,number>;
  categoryHistory:string[];usedFingerprints:string[];completedFingerprint:string;historyRecorded:boolean;
- readyPlayers:string[];readyDeadline:number;winner:string;nextAt:number;cancelled:boolean;
+ readyPlayers:string[];readyDeadline:number;winner:string;nextAt:number;cancelled:boolean;skipVotes?:string[];
 };
 export type QuizView=QuizSettings&{
  id:string;creator:string;players:QuizPlayer[];stage:QuizState['stage'];number:number;deadline:number;openedAt:number;
  hintStage:0|1|2;question:string;hint:string;extraHint:string;answer:string;participating:boolean;
  attempts:number;maxAttempts:number;myScore:number;scores:{id:string;name:string;score:number}[];stats:QuizStats;cancelled:boolean;choice:boolean;
+ skipVotes:number;skipRequired:number;skipVoted:boolean;
 };

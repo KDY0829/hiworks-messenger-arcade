@@ -23,6 +23,6 @@ export function QuizSettings({secret,setSecret,busy,host,help,onTest,onStart}:{s
    <p className="game-menu-note">게임 시작 시 선택한 문항 수를 1회 생성합니다.</p>
   </>}
   <Button className="full" variant="outline" disabled={busy||(source==='ai'&&!connected)} onClick={()=>onStart({difficulty,category,questionCount,source,...(source==='ai'?{provider,model}:{})})}>{busy?'문제 준비 중…':'게임 시작'}</Button>
-  {help&&<div className="rules">기본·AI 모드 모두 단답형입니다. 정답을 직접 입력합니다.<br/>문제가 표시되면 5초 뒤 초성, 10초 뒤 추가 힌트, 15초 뒤 정답을 공개합니다.<br/>AI 모드는 짧은 한국어 주관식 문제를 한 번에 생성하며 입력한 키는 저장하지 않습니다.<br/>힌트 전 3점 · 첫 힌트 뒤 2점 · 추가 힌트 뒤 1점<br/>틀리면 1.5초 뒤 다시 답할 수 있으며 문제당 최대 4회입니다.</div>}
+  {help&&<div className="rules">기본·AI 모드 모두 단답형입니다. 정답을 직접 입력합니다.<br/>문제가 표시되면 7초 뒤 초성, 15초 뒤 추가 힌트, 60초 뒤 정답을 공개합니다.<br/>AI 모드는 짧은 한국어 주관식 문제를 한 번에 생성하며 입력한 키는 저장하지 않습니다.<br/>참여자 과반수가 스킵을 누르면 즉시 정답을 공개합니다.<br/>힌트 전 3점 · 첫 힌트 뒤 2점 · 추가 힌트 뒤 1점<br/>틀리면 1.5초 뒤 다시 답할 수 있으며 문제당 최대 4회입니다.</div>}
  </>;
 }

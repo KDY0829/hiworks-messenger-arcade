@@ -1,6 +1,6 @@
 import type {QuizCategory,QuizDifficulty,QuizQuestion} from './types';
 export const quizConfig={
- readyTimeoutMs:8_000,choseongAtMs:5_000,extraHintAtMs:10_000,revealAtMs:15_000,resultPauseMs:1_600,
+ readyTimeoutMs:8_000,choseongAtMs:7_000,extraHintAtMs:15_000,revealAtMs:60_000,resultPauseMs:1_600,
  choiceRevealAtMs:30_000,
  answerCooldownMs:1_500,maxAttemptsPerQuestion:4,historyCooldownDays:30,
  playableFloorPerDifficulty:10,targetPoolPerDifficulty:100,refreshAfterMs:24*60*60*1000,

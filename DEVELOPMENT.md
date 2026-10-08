@@ -118,7 +118,7 @@ Replace the filename with the pending migration and `DB` with your D1 binding na
 
 ## General quiz data and BYOK generation
 
-The default bank is 160 authored short-answer questions, imported server-side by `games/general-quiz/builtin/index.ts` from `fallback.ts` and `short-bank.ts`. Keep question IDs stable, verify 5/10/15-second hint timing, and run `node scripts/test-messenger.mjs`. The historical KorNAT numbered-choice JSON files are not imported for play; preserve their license notices when retaining them.
+The default bank is 160 authored short-answer questions, imported server-side by `games/general-quiz/builtin/index.ts` from `fallback.ts` and `short-bank.ts`. Keep question IDs stable, verify 7/15/60-second hint timing, and run `node scripts/test-messenger.mjs`. The historical KorNAT numbered-choice JSON files are not imported for play; preserve their license notices when retaining them.
 
 Question selection and user history belong in `games/general-quiz/store.ts`; timing and scoring belong in `engine.ts`; editable balance and visible categories belong in `config.ts`. Do not import the bank from a client component.
 

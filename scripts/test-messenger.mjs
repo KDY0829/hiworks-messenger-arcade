@@ -108,30 +108,49 @@ await call(quiz,a,'start',{room:quizRoom,settings:quizSettings});
 function rawQuiz(id=quizRoom){return JSON.parse(native.prepare('SELECT state FROM rooms WHERE id=?').get(id).state);}
 function editQuiz(edit,id=quizRoom){const room=rawQuiz(id);edit(room.quiz);native.prepare('UPDATE rooms SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(room),id);}
 function quizExtra(id=quizRoom,extra={}){const state=rawQuiz(id).quiz;return {room:id,gameId:state.id,number:state.number,...extra};}
-assert.equal(rawQuiz().quiz.stage,'ready');assert.equal(rawQuiz().quiz.openedAt,0);await call(quiz,a,'answer',quizExtra(quizRoom,{text:'아직 안 보임'}),400);await call(quiz,a,'ready',quizExtra());assert.equal(rawQuiz().quiz.stage,'question');assert.equal(rawQuiz().quiz.deadline-rawQuiz().quiz.openedAt,15000);
+assert.equal(rawQuiz().quiz.stage,'ready');assert.equal(rawQuiz().quiz.openedAt,0);await call(quiz,a,'answer',quizExtra(quizRoom,{text:'아직 안 보임'}),400);await call(quiz,a,'ready',quizExtra());assert.equal(rawQuiz().quiz.stage,'question');assert.equal(rawQuiz().quiz.deadline-rawQuiz().quiz.openedAt,60000);
 const hiddenQuiz=await call(rooms,a,'poll',{room:quizRoom});assert(!Object.hasOwn(hiddenQuiz,'quiz'));
 const quizClock=await import(quizEngine),clockRoom=rawQuiz(),opened=clockRoom.quiz.openedAt;
 assert.equal(clockRoom.quiz.current.kind,'short');assert(!clockRoom.messages.some(message=>message.text.includes('정답 번호')));
-quizClock.tickQuiz(clockRoom,opened+4999);assert.equal(clockRoom.quiz.hintStage,0);
-quizClock.tickQuiz(clockRoom,opened+5000);assert.equal(clockRoom.quiz.hintStage,1);assert.equal(quizClock.quizView(clockRoom,a).hint,quizText.choseongHint(clockRoom.quiz.current.answer));
-quizClock.tickQuiz(clockRoom,opened+10000);assert.equal(clockRoom.quiz.hintStage,2);
-quizClock.tickQuiz(clockRoom,opened+15000);assert.equal(clockRoom.quiz.stage,'result');
+quizClock.tickQuiz(clockRoom,opened+6999);assert.equal(clockRoom.quiz.hintStage,0);
+quizClock.tickQuiz(clockRoom,opened+7000);assert.equal(clockRoom.quiz.hintStage,1);assert.equal(quizClock.quizView(clockRoom,a).hint,quizText.choseongHint(clockRoom.quiz.current.answer));
+quizClock.tickQuiz(clockRoom,opened+15000);assert.equal(clockRoom.quiz.hintStage,2);
+quizClock.tickQuiz(clockRoom,opened+59999);assert.equal(clockRoom.quiz.stage,'question');
+quizClock.tickQuiz(clockRoom,opened+60000);assert.equal(clockRoom.quiz.stage,'result');
 const legacyRoom=rawQuiz();legacyRoom.quiz.current.kind='choice';quizClock.tickQuiz(legacyRoom,opened);assert.equal(legacyRoom.quiz.stage,'finished');assert(legacyRoom.messages.some(message=>message.text.includes('단답형으로 업데이트')));
 await call(rooms,a,'chat',{room:quizRoom,text:'일반 대화도 계속됩니다.'});
 await call(quiz,a,'answer',quizExtra(quizRoom,{text:'확실한 오답'}));await call(quiz,a,'answer',quizExtra(quizRoom,{text:'또 오답'}),400);editQuiz(state=>state.lastAttemptAt[a]=0);
 let current=rawQuiz().quiz.current;await call(quiz,a,'answer',quizExtra(quizRoom,{text:` ${[...current.answer].join(' ')}! `}));assert.equal(rawQuiz().quiz.scores[a],3);assert.equal(Number(native.prepare('SELECT count(*) AS n FROM quiz_history WHERE token=?').get(a).n),1);
-editQuiz(state=>state.nextAt=Date.now()-1);await call(quiz,a,'get',{room:quizRoom});await call(quiz,a,'ready',quizExtra());editQuiz(state=>state.openedAt=Date.now()-6000);await call(quiz,a,'get',{room:quizRoom});assert(rawQuiz().messages.some(message=>message.text.includes('힌트 ·')));
+editQuiz(state=>state.nextAt=Date.now()-1);await call(quiz,a,'get',{room:quizRoom});await call(quiz,a,'ready',quizExtra());editQuiz(state=>state.openedAt=Date.now()-8000);await call(quiz,a,'get',{room:quizRoom});assert(rawQuiz().messages.some(message=>message.text.includes('힌트 ·')));
 current=rawQuiz().quiz.current;await call(quiz,a,'answer',quizExtra(quizRoom,{text:current.answer}));assert.equal(rawQuiz().quiz.scores[a],5);
-editQuiz(state=>state.nextAt=Date.now()-1);await call(quiz,a,'get',{room:quizRoom});await call(quiz,a,'ready',quizExtra());editQuiz(state=>state.openedAt=Date.now()-16000);await call(quiz,a,'get',{room:quizRoom});assert.equal(rawQuiz().quiz.stage,'result');assert(rawQuiz().messages.some(message=>message.text.includes('추가 힌트')));assert(rawQuiz().messages.some(message=>message.text.includes('시간이 지났습니다.')));
+editQuiz(state=>state.nextAt=Date.now()-1);await call(quiz,a,'get',{room:quizRoom});await call(quiz,a,'ready',quizExtra());editQuiz(state=>state.openedAt=Date.now()-61000);await call(quiz,a,'get',{room:quizRoom});assert.equal(rawQuiz().quiz.stage,'result');assert(rawQuiz().messages.some(message=>message.text.includes('추가 힌트')));assert(rawQuiz().messages.some(message=>message.text.includes('시간이 지났습니다.')));
 await call(quiz,a,'stop',quizExtra());assert.equal(rawQuiz().quiz.stage,'finished');
 for(const difficulty of ['elementary','middle','high','university']){const id=(await call(rooms,a,'create',{name:'대영'})).id;await call(quiz,a,'start',{room:id,settings:{difficulty,category:'all',questionCount:5,source:'builtin'}});assert.equal(rawQuiz(id).quiz.difficulty,difficulty);await call(quiz,a,'stop',quizExtra(id));}
-const delayed=(await call(rooms,a,'create',{name:'대영'})).id;await call(quiz,a,'start',{room:delayed,settings:quizSettings});editQuiz(state=>state.readyDeadline=Date.now()-1,delayed);await call(quiz,a,'get',{room:delayed});assert.equal(rawQuiz(delayed).quiz.stage,'question');assert.equal(rawQuiz(delayed).quiz.deadline-rawQuiz(delayed).quiz.openedAt,15000);await call(quiz,a,'stop',quizExtra(delayed));
+const delayed=(await call(rooms,a,'create',{name:'대영'})).id;await call(quiz,a,'start',{room:delayed,settings:quizSettings});editQuiz(state=>state.readyDeadline=Date.now()-1,delayed);await call(quiz,a,'get',{room:delayed});assert.equal(rawQuiz(delayed).quiz.stage,'question');assert.equal(rawQuiz(delayed).quiz.deadline-rawQuiz(delayed).quiz.openedAt,60000);await call(quiz,a,'stop',quizExtra(delayed));
 const duel=(await call(rooms,a,'create',{name:'대영'})).id;await call(rooms,b,'join',{room:duel,name:'유진'});await call(quiz,a,'start',{room:duel,settings:{difficulty:'middle',category:'all',questionCount:5,source:'builtin'}});await call(quiz,a,'ready',quizExtra(duel));assert.equal(rawQuiz(duel).quiz.stage,'ready');await call(quiz,b,'ready',quizExtra(duel));const duelState=rawQuiz(duel).quiz,answer=duelState.current.answer,payload={room:duel,action:'answer',gameId:duelState.id,number:duelState.number,text:answer};
 const simultaneous=await Promise.all([a,b].map(token=>quiz.POST(new Request('https://test.local/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,...payload})}))));assert.equal(simultaneous.filter(result=>result.status===200).length,1);assert.equal(Math.max(...Object.values(rawQuiz(duel).quiz.scores)),3);assert.equal(Number(native.prepare('SELECT count(*) AS n FROM quiz_history WHERE fingerprint=?').get(duelState.current.fingerprint).n),2);
 // OpenTDB's token handshake and translated normalization are tested without a network dependency.
+const skipRoom=(await call(rooms,a,'create',{name:'대영'})).id;
+await call(rooms,b,'join',{room:skipRoom,name:'유진'});await call(rooms,c,'join',{room:skipRoom,name:'민수'});
+await call(quiz,a,'start',{room:skipRoom,settings:quizSettings});
+await call(quiz,a,'skip',quizExtra(skipRoom),400);
+for(const token of [a,b,c])await call(quiz,token,'ready',quizExtra(skipRoom));
+const skipped=rawQuiz(skipRoom).quiz.current;
+let skipView=(await call(quiz,a,'skip',quizExtra(skipRoom))).state;assert.equal(skipView.skipVotes,1);assert.equal(skipView.skipRequired,2);assert.equal(skipView.skipVoted,true);assert.equal(skipView.answer,'');
+await call(quiz,a,'skip',quizExtra(skipRoom));assert.equal(rawQuiz(skipRoom).quiz.skipVotes.length,1);
+const late=crypto.randomUUID();await call(rooms,late,'join',{room:skipRoom,name:'관전자'});await call(quiz,late,'skip',quizExtra(skipRoom),400);
+skipView=(await call(quiz,b,'skip',quizExtra(skipRoom))).state;assert.equal(skipView.stage,'result');assert.equal(skipView.answer,skipped.answer);assert(rawQuiz(skipRoom).messages.some(message=>message.text.includes('과반수가 스킵')));
+assert(Object.values(rawQuiz(skipRoom).quiz.scores).every(score=>score===0));assert(Object.values(rawQuiz(skipRoom).quiz.stats).every(stats=>stats.wrong===0));assert.equal(Number(native.prepare('SELECT count(*) AS n FROM quiz_history WHERE fingerprint=?').get(skipped.fingerprint).n),3);
+const staleSkip=quizExtra(skipRoom);editQuiz(state=>state.nextAt=Date.now()-1,skipRoom);await call(quiz,a,'get',{room:skipRoom});assert.deepEqual(rawQuiz(skipRoom).quiz.skipVotes,[]);await call(quiz,a,'skip',staleSkip,409);
+for(const token of [a,b,c])await call(quiz,token,'ready',quizExtra(skipRoom));
+const voteResults=await Promise.all([a,b].map(token=>quiz.POST(new Request('https://test.local/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,action:'skip',...quizExtra(skipRoom)})}))));assert(voteResults.every(result=>result.status===200));assert.equal(rawQuiz(skipRoom).quiz.stage,'result');assert.equal(rawQuiz(skipRoom).messages.filter(message=>message.text.includes('과반수가 스킵')).length,2);
+await call(quiz,a,'stop',quizExtra(skipRoom));
+const soloSkip=(await call(rooms,a,'create',{name:'대영'})).id;await call(quiz,a,'start',{room:soloSkip,settings:quizSettings});await call(quiz,a,'ready',quizExtra(soloSkip));assert.equal((await call(quiz,a,'skip',quizExtra(soloSkip))).state.stage,'result');await call(quiz,a,'stop',quizExtra(soloSkip));
+const pairSkip=(await call(rooms,a,'create',{name:'대영'})).id;await call(rooms,b,'join',{room:pairSkip,name:'유진'});await call(quiz,a,'start',{room:pairSkip,settings:quizSettings});for(const token of [a,b])await call(quiz,token,'ready',quizExtra(pairSkip));assert.equal((await call(quiz,a,'skip',quizExtra(pairSkip))).state.stage,'question');assert.equal((await call(quiz,b,'skip',quizExtra(pairSkip))).state.stage,'result');await call(quiz,a,'stop',quizExtra(pairSkip));
+console.log('PASS: majority skip, duplicate votes, spectator exclusion, simultaneous votes, answer reveal, neutral score, history and per-question vote reset');
 const fetchBeforeQuiz=globalThis.fetch;let openCalls=0;globalThis.fetch=async()=>{openCalls++;return openCalls===1?Response.json({response_code:0,token:'session-token'}):Response.json({response_code:0,results:[{type:'multiple',difficulty:'easy',category:'Science & Nature',question:'Capital%20of%20Korea%3F',correct_answer:'Seoul',incorrect_answers:[]} ]});};
 let external=await openTrivia.openTriviaDb.fetchQuestions({limit:10,signal:new AbortController().signal});assert.equal(external.token,'session-token');external=await openTrivia.openTriviaDb.fetchQuestions({limit:10,token:external.token,signal:new AbortController().signal,translate:async text=>text.includes('Capital')?'대한민국의 수도는?':'서울'});assert.equal(external.questions[0].answer,'서울');assert.equal(openCalls,2);globalThis.fetch=fetchBeforeQuiz;
-console.log('PASS: 160 short-answer questions, single/multiplayer, four difficulties, 5-second initials, history, BYOK generation and key isolation');
+console.log('PASS: 160 short-answer questions, single/multiplayer, four difficulties, 7-second initials, history, BYOK generation and key isolation');
 // AI game runs the real provider adapters with controlled HTTP responses; no paid key needed.
 const infiltrator=await route('app/api/games/infiltrator/route.ts');
 const aiLogic=await import(aiEngine),providerModule=await import(aiProviders);
