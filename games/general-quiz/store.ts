@@ -1,5 +1,6 @@
 import {quizConfig,retiredQuizQuestion} from './config';
 import builtinData from './builtin';
+import {aptitudeQuestions} from '../aptitude/bank';
 import {fallbackFacts} from './fallback';
 import {questionFingerprint} from './normalize';
 import {quizProviders} from './providers/registry';
@@ -26,7 +27,7 @@ function shuffle<T>(values:T[]){for(let i=values.length-1;i>0;i--){const random=
 export async function selectQuestions(db:D1Database,settings:QuizSettings,tokens:string[],count:number,excluded:string[]=[]){
  const where=settings.category==='all'?'difficulty=?':'difficulty=? AND category=?',params=settings.category==='all'?[settings.difficulty]:[settings.difficulty,settings.category];const rows=await db.prepare(`SELECT * FROM quiz_questions WHERE ${where} ORDER BY use_count ASC,last_used_at ASC LIMIT 500`).bind(...params).all<QuestionRow>();rows.results=rows.results.filter(row=>!retiredQuizQuestion({provider:row.provider,providerQuestionId:row.provider_question_id}));
  const placeholders=tokens.map(()=>'?').join(','),history=tokens.length?await db.prepare(`SELECT fingerprint,max(seen_at) AS seen_at FROM quiz_history WHERE token IN (${placeholders}) GROUP BY fingerprint`).bind(...tokens).all<{fingerprint:string;seen_at:number}>():{results:[]};const seen=new Map(history.results.map(row=>[row.fingerprint,Number(row.seen_at)])),cutoff=Date.now()-quizConfig.historyCooldownDays*86400000,blocked=new Set(excluded);
- const candidates:QuizQuestion[]=[...builtinQuestions.filter(question=>question.difficulty===settings.difficulty&&(settings.category==='all'||question.category===settings.category)),...rows.results.filter(row=>row.provider!=='fallback').map(rowQuestion)].filter(question=>question.kind!=='choice'&&!/\n\s*[1-4][.)]/.test(question.question));
+ const candidates:QuizQuestion[]=(settings.source==='aptitude'?aptitudeQuestions.filter(question=>question.difficulty===settings.difficulty&&(settings.category==='all'||question.category===settings.category)):[...builtinQuestions.filter(question=>question.difficulty===settings.difficulty&&(settings.category==='all'||question.category===settings.category)),...rows.results.filter(row=>row.provider!=='fallback'&&row.provider!=='aptitude').map(rowQuestion)]).filter(question=>question.kind!=='choice'&&!/\n\s*[1-4][.)]/.test(question.question));
  const rank=(question:QuizQuestion)=>!seen.has(question.fingerprint)?0:(seen.get(question.fingerprint)??0)<cutoff?1:2;const selected:QuizQuestion[]=[];for(const level of [0,1,2]){const available=shuffle(candidates.filter(question=>rank(question)===level&&!blocked.has(question.fingerprint)));const buckets=new Map<string,QuizQuestion[]>();for(const question of available)buckets.set(question.category,[...(buckets.get(question.category)??[]),question]);while(selected.length<count&&[...buckets.values()].some(values=>values.length)){for(const values of buckets.values()){const question=values.shift();if(question&&!blocked.has(question.fingerprint)){selected.push(question);blocked.add(question.fingerprint);if(selected.length===count)break;}}}if(selected.length===count)break;}
  return selected;
 }

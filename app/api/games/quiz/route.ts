@@ -12,7 +12,12 @@ export const dynamic='force-dynamic';
 const fail=(error:string,status=400)=>Response.json({error},{status,headers:{'Cache-Control':'no-store'}});
 const response=(room:Room,token:string)=>Response.json({state:quizView(room,token)},{headers:{'Cache-Control':'no-store'}});
 type Body={token:string;room:string;action:string;settings?:QuizSettings;text?:string;gameId?:string;number?:number;key?:string;provider?:string;model?:string};
-function validSettings(value:QuizSettings|undefined):value is QuizSettings{return !!value&&['builtin','ai'].includes(value.source)&&quizConfig.difficulties.some(item=>item.id===value.difficulty)&&quizConfig.categories.some(item=>item.id===value.category)&&quizConfig.questionCounts.includes(value.questionCount)&&(value.source==='builtin'||!!value.provider&&!!value.model&&validModel(value.provider,value.model)&&value.questionCount!==0);}
+function validSettings(value:QuizSettings|undefined):value is QuizSettings{
+ if(!value||!quizConfig.difficulties.some(item=>item.id===value.difficulty)||!quizConfig.categories.some(item=>item.id===value.category)||!quizConfig.questionCounts.includes(value.questionCount))return false;
+ if(value.source==='aptitude')return ['middle','high','university'].includes(value.difficulty)&&['all','culture','science','society'].includes(value.category)&&[5,10].includes(value.questionCount);
+ if(value.source==='builtin')return true;
+ return value.source==='ai'&&!!value.provider&&!!value.model&&validModel(value.provider,value.model)&&value.questionCount!==0;
+}
 export async function POST(req:Request){
  try{
   if(req.headers.get('origin')&&new URL(req.headers.get('origin')!).host!==new URL(req.url).host)return fail('요청 출처를 확인해 주세요.',403);
@@ -29,7 +34,7 @@ export async function POST(req:Request){
     room.aiTestAt=now;if(!await save(room,current.revision))continue;
     try{await generate(String(body.provider??''),String(body.model??''),String(body.key??''),'한국어로 확인이라고만 답해라.');return Response.json({connected:true},{headers:{'Cache-Control':'no-store'}});}catch(error){return fail(error instanceof ProviderError?error.message:'연결 테스트에 실패했습니다.');}
    }
-   if(activeQuiz(room)&&room.quiz!.stage==='loading'){const next=room.quiz!.source==='ai'?undefined:(await selectQuestions(db,{difficulty:room.quiz!.difficulty,category:room.quiz!.category,questionCount:room.quiz!.questionCount,source:'builtin'},room.quiz!.players.map(player=>player.id),1,room.quiz!.usedFingerprints))[0];if(next){supplyNextQuestion(room,now,next);changed=true;}else{stopQuiz(room);changed=true;}}
+   if(activeQuiz(room)&&room.quiz!.stage==='loading'){const next=room.quiz!.source==='ai'?undefined:(await selectQuestions(db,{difficulty:room.quiz!.difficulty,category:room.quiz!.category,questionCount:room.quiz!.questionCount,source:room.quiz!.source},room.quiz!.players.map(player=>player.id),1,room.quiz!.usedFingerprints))[0];if(next){supplyNextQuestion(room,now,next);changed=true;}else{stopQuiz(room);changed=true;}}
    if(body.action==='start'){
     if(room.host!==body.token)return fail('방장만 시작할 수 있습니다.',403);if(!validSettings(body.settings))return fail('게임 설정을 확인해 주세요.');
     if(activeQuiz(room)||room.phase==='playing'||(room.infiltrator&&room.infiltrator.stage!=='finished'))return fail('이미 게임이 진행 중입니다.');const activePlayers=room.players.filter(player=>now-player.seen<15000);if(!activePlayers.length)return fail('접속 중인 참여자가 필요합니다.');
@@ -37,7 +42,7 @@ export async function POST(req:Request){
       if(room.quizPrepare&&room.quizPrepare.expires>now&&room.quizPrepare.lease!==prepareLease)return fail('AI 문제를 준비 중입니다. 잠시만 기다려 주세요.',409);
       prepareLease=crypto.randomUUID();room.quizPrepare={lease:prepareLease,creator:body.token,expires:now+90_000};if(!await save(room,current.revision)){prepareLease='';continue;}
       try{prepared=await generateQuizQuestions(body.settings,String(body.key??''),count);}catch(error){await releasePrepare();throw error;}continue;
-     }else{await ensureQuestionPool(db);prepared=await selectQuestions(db,body.settings,activePlayers.map(player=>player.id),count);}}
+     }else{if(body.settings.source!=='aptitude')await ensureQuestionPool(db);prepared=await selectQuestions(db,body.settings,activePlayers.map(player=>player.id),count);}}
     if(prepareLease&&room.quizPrepare?.lease!==prepareLease)return fail('게임 준비 상태가 변경되었습니다. 다시 시도해 주세요.',409);delete room.quizPrepare;
     startQuiz(room,body.settings,prepared,now);changed=true;
    }else if(body.action==='refresh'){

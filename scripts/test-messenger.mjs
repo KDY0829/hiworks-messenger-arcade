@@ -32,7 +32,8 @@ const quizProviderTypes=url(readFileSync('games/general-quiz/providers/types.ts'
 const quizProviderUrls=Object.fromEntries(['open-trivia-db','trivia-api','wikidata'].map(id=>[id,url(readFileSync(`games/general-quiz/providers/${id}.ts`,'utf8').replace("'../types'",'"data:text/javascript,export{}"').replace("'./types'",JSON.stringify(quizProviderTypes)))]));
 let quizRegistrySource=readFileSync('games/general-quiz/providers/registry.ts','utf8');for(const [id,path] of Object.entries(quizProviderUrls))quizRegistrySource=quizRegistrySource.replace(`'./${id}'`,JSON.stringify(path));
 const quizRegistry=url(quizRegistrySource);
-const quizStore=url(readFileSync('games/general-quiz/store.ts','utf8').replace("'./config'",JSON.stringify(quizConfig)).replace("'./builtin'",JSON.stringify(quizBuiltin)).replace("'./fallback'",JSON.stringify(quizFallback)).replace("'./normalize'",JSON.stringify(quizNormalize)).replace("'./providers/registry'",JSON.stringify(quizRegistry)));
+const aptitudeBank=url(readFileSync('games/aptitude/bank.ts','utf8'));
+const quizStore=url(readFileSync('games/general-quiz/store.ts','utf8').replace("'../aptitude/bank'",JSON.stringify(aptitudeBank)).replace("'./config'",JSON.stringify(quizConfig)).replace("'./builtin'",JSON.stringify(quizBuiltin)).replace("'./fallback'",JSON.stringify(quizFallback)).replace("'./normalize'",JSON.stringify(quizNormalize)).replace("'./providers/registry'",JSON.stringify(quizRegistry)));
 const quizEngine=url(readFileSync('games/general-quiz/engine.ts','utf8').replace("'@/lib/game'",JSON.stringify(game)).replace("'./config'",JSON.stringify(quizConfig)).replace("'./normalize'",JSON.stringify(quizNormalize)));
 const aiConfig=url(readFileSync('ai/config.ts','utf8')),providerTypes=url(readFileSync('ai/providers/types.ts','utf8'));
 const providerUrls=Object.fromEntries(['openai','gemini','anthropic'].map(id=>[id,url(readFileSync(`ai/providers/${id}.ts`,'utf8').replace("'./types'",JSON.stringify(providerTypes)))]));
@@ -130,6 +131,26 @@ const delayed=(await call(rooms,a,'create',{name:'대영'})).id;await call(quiz,
 const duel=(await call(rooms,a,'create',{name:'대영'})).id;await call(rooms,b,'join',{room:duel,name:'유진'});await call(quiz,a,'start',{room:duel,settings:{difficulty:'middle',category:'all',questionCount:5,source:'builtin'}});await call(quiz,a,'ready',quizExtra(duel));assert.equal(rawQuiz(duel).quiz.stage,'ready');await call(quiz,b,'ready',quizExtra(duel));const duelState=rawQuiz(duel).quiz,answer=duelState.current.answer,payload={room:duel,action:'answer',gameId:duelState.id,number:duelState.number,text:answer};
 const simultaneous=await Promise.all([a,b].map(token=>quiz.POST(new Request('https://test.local/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,...payload})}))));assert.equal(simultaneous.filter(result=>result.status===200).length,1);assert.equal(Math.max(...Object.values(rawQuiz(duel).quiz.scores)),3);assert.equal(Number(native.prepare('SELECT count(*) AS n FROM quiz_history WHERE fingerprint=?').get(duelState.current.fingerprint).n),2);
 // OpenTDB's token handshake and translated normalization are tested without a network dependency.
+const aptBank=(await import(aptitudeBank)).aptitudeQuestions;
+assert.equal(aptBank.length,150);assert.equal(new Set(aptBank.map(q=>q.id)).size,150);assert.equal(new Set(aptBank.map(q=>q.question)).size,150);assert(aptBank.every(q=>q.explanation&&q.hint&&q.extraHint));
+for(const difficulty of ['middle','high','university'])for(const category of ['culture','science','society']){
+ const aptRoom=(await call(rooms,a,'create',{name:'대영'})).id;
+ await call(quiz,a,'start',{room:aptRoom,settings:{difficulty,category,questionCount:10,source:'aptitude'}});
+ const privateState=rawQuiz(aptRoom).quiz;assert.equal(privateState.source,'aptitude');assert.equal(privateState.queue.length,10);assert(privateState.queue.every(q=>q.provider==='aptitude'&&q.category===category&&q.difficulty===difficulty));
+ const hidden=(await call(quiz,a,'get',{room:aptRoom})).state;assert.equal(hidden.answer,'');assert(!JSON.stringify(hidden).includes(privateState.current.explanation));
+ await call(quiz,a,'ready',quizExtra(aptRoom));const testRoom=rawQuiz(aptRoom),start=testRoom.quiz.openedAt;quizClock.tickQuiz(testRoom,start+7000);assert.equal(quizClock.quizView(testRoom,a).hint,testRoom.quiz.current.hint);quizClock.tickQuiz(testRoom,start+15000);assert.equal(quizClock.quizView(testRoom,a).extraHint,testRoom.quiz.current.extraHint);
+ await call(quiz,a,'skip',quizExtra(aptRoom));assert(rawQuiz(aptRoom).messages.some(m=>m.text.includes('해설: '+privateState.current.explanation)));await call(quiz,a,'stop',quizExtra(aptRoom));
+}
+for(const q of aptBank.filter(q=>q.category==='science')){
+ const nums=[...q.question.replaceAll(',','').matchAll(/\d+/g)].map(m=>Number(m[0]));
+ if(q.question.startsWith('자동차'))assert.equal(Number(q.answer),nums[0]*nums[1]+nums[2]*nums[3]);
+ if(q.question.startsWith('작업'))assert.equal(Number(q.answer),nums[0]*nums[1]/nums[2]);
+ if(q.question.startsWith('원가'))assert.equal(Number(q.answer),Math.round(nums[0]*(1+nums[1]/100)*(1-nums[2]/100)-nums[0]));
+ if(q.question.includes('평균 점수'))assert.equal(Number(q.answer),(nums[0]*nums[1]+nums[2])/(nums[0]+1));
+}
+const invalidApt=(await call(rooms,a,'create',{name:'대영'})).id;await call(quiz,a,'start',{room:invalidApt,settings:{difficulty:'middle',category:'history',questionCount:10,source:'aptitude',provider:'openai',model:'gpt-5.4-nano'}},400);
+const builtinAfterApt=await quizData.selectQuestions(scope.raw,quizSettings,[a],10);assert(builtinAfterApt.every(q=>q.provider!=='aptitude'));
+console.log('PASS: aptitude bank separation, 150 unique stems, category/difficulty filtering, arithmetic, hidden solutions, hints and explanations');
 const skipRoom=(await call(rooms,a,'create',{name:'대영'})).id;
 await call(rooms,b,'join',{room:skipRoom,name:'유진'});await call(rooms,c,'join',{room:skipRoom,name:'민수'});
 await call(quiz,a,'start',{room:skipRoom,settings:quizSettings});

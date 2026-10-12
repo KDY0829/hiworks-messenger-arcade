@@ -4,4 +4,5 @@ export const games=[
  {id:'sword',name:'검 강화하기',description:'장비 강화·판매와 개인 기록',minPlayers:1},
  {id:'infiltrator',name:'AI 잠입자',description:'답변 속 AI 찾기',minPlayers:3},
  {id:'quiz',name:'상식 퀴즈',description:'채팅으로 푸는 주관식 퀴즈',minPlayers:1},
+ {id:'aptitude',name:'인적성 연습',description:'언어·수리·추리와 풀이 해설',minPlayers:1},
 ] as const;

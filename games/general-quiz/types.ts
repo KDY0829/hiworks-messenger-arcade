@@ -1,10 +1,10 @@
 export type QuizDifficulty='elementary'|'middle'|'high'|'university';
 export type QuizCategory='all'|'history'|'science'|'geography'|'society'|'culture'|'literature'|'art'|'technology'|'food'|'sports'|'general';
-export type QuizSource='builtin'|'ai';
+export type QuizSource='builtin'|'ai'|'aptitude';
 export type QuizQuestion={
  id:string;provider:string;providerQuestionId:string|null;question:string;answer:string;acceptedAnswers:string[];
  difficulty:QuizDifficulty;category:Exclude<QuizCategory,'all'>;source:string;fingerprint:string;
- kind?:'short'|'choice';displayAnswer?:string;
+ kind?:'short'|'choice';displayAnswer?:string;explanation?:string;hint?:string;extraHint?:string;
 };
 export type QuizSettings={difficulty:QuizDifficulty;category:QuizCategory;questionCount:5|10|20|0;source:QuizSource;provider?:string;model?:string};
 export type QuizPlayer={id:string;name:string};
